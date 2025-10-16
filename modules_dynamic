@@ -14,8 +14,6 @@
 ./modules/njet-vtsd-module
 # required
 ./modules/njet-helper-ctrl-module
-# optional
-#./modules/njet-helper-dynconf-update-module
 # required
 ./modules/njet-helper-broker-module
 # required
