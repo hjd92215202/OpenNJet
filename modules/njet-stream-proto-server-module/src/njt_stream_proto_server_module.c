@@ -5138,9 +5138,11 @@ void proto_util_base64(tcc_stream_request_t *r, u_char *s, size_t s_l, u_char **
 njt_int_t
 njt_tcc_yield(njt_stream_proto_server_client_ctx_t *ctx)
 {
+    njt_stream_session_t *s;
     if (swapcontext(&ctx->runctx, &ctx->main_ctx) == -1)
     {
-        njt_log_error(NJT_LOG_ERR, njt_cycle->log, 0,
+        s = ctx->r.s;
+        njt_log_error(NJT_LOG_ERR, s->connection->log, 0,
                       "swapcontext error!");
     }
 
@@ -5483,13 +5485,14 @@ int cli_set_session(tcc_stream_request_t *r, tcc_str_t *session, tcc_str_t *data
     njt_stream_session_t *s;
     njt_int_t  rc;
     tcc_stream_request_t **rr;
-
+    
+    s = (njt_stream_session_t *)r->s;
     if (session == NULL || session->len == 0 || session->data == NULL)
     {
-        njt_log_debug(NJT_LOG_DEBUG_STREAM, njt_cycle->log, 0, "cli_set_session session null!");
+        njt_log_debug(NJT_LOG_DEBUG_STREAM, s->connection->log, 0, "cli_set_session session null!");
         return APP_ERROR;
     }
-    s = (njt_stream_session_t *)r->s;
+   
     sscf = njt_stream_get_module_srv_conf(s, njt_stream_proto_server_module);
     if (sscf->session_size < session->len)
     {
