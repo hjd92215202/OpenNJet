@@ -267,6 +267,7 @@ njt_int_t njt_get_sys_meminfo(njt_meminfo_t *meminfo, njt_log_t *log) {
     char                buf[128];
     char                name[64];
     char                unit[64];
+    unsigned long       cached = 0;
 
     njt_memzero(meminfo, sizeof(njt_meminfo_t));
 
@@ -286,9 +287,20 @@ njt_int_t njt_get_sys_meminfo(njt_meminfo_t *meminfo, njt_log_t *log) {
     if(NULL != fgets(buf, sizeof(buf), fd)){
         sscanf(buf, "%s %lu %s", name, &meminfo->free, unit);
     }
-    
+
     if(NULL != fgets(buf, sizeof(buf), fd)){
         sscanf(buf, "%s %lu %s", name, &meminfo->avaliable, unit);
+
+        //compare name, if name is not MemAvailable, maybe kernel less than 3.1
+        //need calc avaliable = MemFree + Buffers + Cached
+        if(0 != njt_strncasecmp((u_char *)name, (u_char *)"MemAvailable", njt_strlen("MemAvailable"))){
+            //read cached
+            if(NULL != fgets(buf, sizeof(buf), fd)){
+                sscanf(buf, "%s %lu %s", name, &cached, unit);
+            }
+
+            meminfo->avaliable += cached + meminfo->free;
+        }
     }
 
     fclose(fd);
@@ -348,6 +360,10 @@ njt_int_t njt_get_sys_mem_usage(njt_meminfo_t *info, njt_int_t *usage, njt_log_t
     }
 
     *usage = 100.0 * (info->total - info->avaliable) / info->total;
+
+    // njt_log_error(NJT_LOG_EMERG, log, 0,
+    //     "=========udage:%d total:%d  aval:%d",
+    //     *usage, info->total, info->avaliable); 
 
     return NJT_OK;
 }

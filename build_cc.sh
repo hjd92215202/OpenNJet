@@ -157,39 +157,39 @@ PATH_INFO=" --conf-path=$NJET_CONF_PATH \
     --data-prefix-path=$NJET_REAL_DATA_PREFIX_PATH \
 "
 
-if [ $NJET_ERROR_LOG_PATH ]; then
+if [ "$NJET_ERROR_LOG_PATH" ]; then
     PATH_INFO="$PATH_INFO --error-log-path=$NJET_ERROR_LOG_PATH"
 fi
 
-if [ $NJT_PID_PATH ]; then
+if [ "$NJT_PID_PATH" ]; then
     PATH_INFO="$PATH_INFO --pid-path=$NJT_PID_PATH"
 fi
 
-if [ $NJT_LOCK_PATH ]; then
+if [ "$NJT_LOCK_PATH" ]; then
     PATH_INFO="$PATH_INFO --lock-path=$NJT_LOCK_PATH"
 fi
 
-if [ $NJT_HTTP_LOG_PATH ]; then
+if [ "$NJT_HTTP_LOG_PATH" ]; then
     PATH_INFO="$PATH_INFO --http-log-path=$NJT_HTTP_LOG_PATH"
 fi
 
-if [ $NJT_HTTP_CLIENT_TEMP_PATH ]; then
+if [ "$NJT_HTTP_CLIENT_TEMP_PATH" ]; then
     PATH_INFO="$PATH_INFO --http-client-body-temp-path=$NJT_HTTP_CLIENT_TEMP_PATH"
 fi
 
-if [ $NJT_HTTP_PROXY_TEMP_PATH ]; then
+if [ "$NJT_HTTP_PROXY_TEMP_PATH" ]; then
     PATH_INFO="$PATH_INFO --http-proxy-temp-path=$NJT_HTTP_PROXY_TEMP_PATH"
 fi
 
-if [ $NJT_HTTP_FASTCGI_TEMP_PATH ]; then
+if [ "$NJT_HTTP_FASTCGI_TEMP_PATH" ]; then
     PATH_INFO="$PATH_INFO --http-fastcgi-temp-path=$NJT_HTTP_FASTCGI_TEMP_PATH"
 fi
 
-if [ $NJT_HTTP_UWSGI_TEMP_PATH ]; then
+if [ "$NJT_HTTP_UWSGI_TEMP_PATH" ]; then
     PATH_INFO="$PATH_INFO --http-uwsgi-temp-path=$NJT_HTTP_UWSGI_TEMP_PATH"
 fi
 
-if [ $NJT_HTTP_SCGI_TEMP_PATH ]; then
+if [ "$NJT_HTTP_SCGI_TEMP_PATH" ]; then
     PATH_INFO="$PATH_INFO --http-scgi-temp-path=$NJT_HTTP_SCGI_TEMP_PATH"
 fi
 
@@ -224,24 +224,24 @@ fi
 #api doc make tar file
 doctar=doc.tar
 
-if [ -f $doctar ]
+if [ -f "$doctar" ]
 then
    rm $doctar
 fi
 
-if [ -f $doctar.gz ]
+if [ -f "$doctar.gz" ]
 then
    rm $doctar.gz
 fi
 tar cvf $doctar doc
 gzip $doctar
 xxd -i $doctar.gz > src/http/njt_doc_gz.h
-if [ -f $doctar ]
+if [ -f "$doctar" ]
 then
    rm $doctar
 fi
 
-if [ -f $doctar.gz ]
+if [ -f "$doctar.gz" ]
 then
    rm $doctar.gz
 fi
