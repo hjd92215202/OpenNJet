@@ -146,3 +146,5 @@
 ./modules/njet-stream-dyn-ssl-module
 #optional
 ./modules/njet-stream-ssl-api-module
+# optional
+./modules/njet-openapi-parser-module
