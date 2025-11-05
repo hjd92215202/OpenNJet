@@ -436,13 +436,6 @@ static njt_int_t njt_stream_add_server_handler(njt_stream_dyn_server_info_t *ser
 		}
 	}
 	njt_stream_variables_init_vars_dyn(&conf);
-	if (njt_stream_ssl_dynamic_init(&conf, server_info->addr_conf) != NJT_OK)
-	{
-		rc = NJT_ERROR;
-		njt_str_set(&server_info->msg, "add server error:no ssl_certificate!");
-
-		goto out;
-	}
 
 	old_pool = cmcf->dyn_vs_pool;
 	cmcf->dyn_vs_pool = NULL;
@@ -490,15 +483,17 @@ static njt_int_t njt_stream_add_server_handler(njt_stream_dyn_server_info_t *ser
 			rc = NJT_ERROR;
 			goto out;
 		}
-		if (njt_stream_ssl_dynamic_init(&conf,server_info->addr_conf) != NJT_OK) {
-			rc = NJT_ERROR;
-			njt_str_set(&server_info->msg,"add server error:no ssl_certificate!");
-			//njt_log_error(NJT_LOG_ERR, njt_cycle->log, 0, "add server error:no ssl_certificate!");
-			goto out;
-        }
         njt_stream_start_dyn_listen(&conf, old_ls_nelts);
     }
     // dyn_listen end
+
+	if (njt_stream_ssl_dynamic_init(&conf, server_info->addr_conf) != NJT_OK)
+	{
+		rc = NJT_ERROR;
+		njt_str_set(&server_info->msg, "add server error:no ssl_certificate!");
+
+		goto out;
+	}
 
 	ret = njt_stream_dyn_server_post_merge_servers();
 	if (old_pool != NULL)
@@ -506,6 +501,7 @@ static njt_int_t njt_stream_add_server_handler(njt_stream_dyn_server_info_t *ser
 		njt_destroy_pool(old_pool);
 		old_pool = NULL;
 	}
+
 	if (ret == NJT_ERROR)
 	{
 		njt_log_error(NJT_LOG_ERR, njt_cycle->log, 0, "add server,but no find in servers.");
