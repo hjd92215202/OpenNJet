@@ -9,6 +9,28 @@
 #include <jansson.h>
 #include <sqlite3.h>
 
+static njt_core_module_t  njt_openapi_util_module_ctx = {
+    njt_string("openapi_util"),
+    NULL,
+    NULL
+};
+
+
+njt_module_t  njt_openapi_util_module = {
+    NJT_MODULE_V1,
+    &njt_openapi_util_module_ctx,          /* module context */
+    NULL,                                  /* module directives */
+    NJT_CORE_MODULE,                       /* module type */
+    NULL,                                  /* init master */
+    NULL,                                  /* init module */
+    NULL,                                  /* init process */
+    NULL,                                  /* init thread */
+    NULL,                                  /* exit thread */
+    NULL,                                  /* exit process */
+    NULL,                                  /* exit master */
+    NJT_MODULE_V1_PADDING
+};
+
 // njt_module_t njt_openapi_parser_module = {
 //   NJT_MODULE_V1,
 //   NULL,                              /* module context */
