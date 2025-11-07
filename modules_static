@@ -31,7 +31,7 @@
 # optional, required by njet-openapi-paser-module
 ./modules/njet-jwt-module
 # optional
-./modules/njet-openapi-parser-module
+#./modules/njet-openapi-parser-module
 # optional, required by njet-stream-stsd-module
 ./modules/njet-stream-stsc-module
 # required
