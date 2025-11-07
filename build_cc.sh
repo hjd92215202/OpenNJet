@@ -286,8 +286,8 @@ cdir=`cd $(dirname $0); pwd`
 		        if [ -d auto/lib/modsecurity/src/.libs ]; then
                   cp -a auto/lib/modsecurity/src/.libs/libmodsecurity.so* ${DESTDIR}${NJET_PREFIX}/lib
                 fi
-		        if [ -d auto/lib/keepalived/keepalived/emb/.libs ]; then
-                  cp -a auto/lib/keepalived/keepalived/emb/.libs/libha_emb.so* ${DESTDIR}${NJET_PREFIX}/lib;
+		        if [ -d modules/njet-helper-ha-module/keepalived/keepalived/emb/.libs ]; then
+                  cp -a modules/njet-helper-ha-module/keepalived/keepalived/emb/.libs/libha_emb.so* ${DESTDIR}${NJET_PREFIX}/lib;
                 fi 
 		        if [ -f auto/lib/librdkafka/build/src/librdkafka.so ]; then
                   cp -a auto/lib/librdkafka/build/src/librdkafka.so* ${DESTDIR}${NJET_PREFIX}/lib
