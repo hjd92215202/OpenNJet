@@ -14,6 +14,11 @@ if [ $OPENSSL != NONE -a $OPENSSL != NO -a $OPENSSL != YES ]; then
     . auto/lib/mariadb/make
 fi
 
+if [ $KEEPALIVED != NONE ]; then
+    . $KEEPALIVED/make
+fi
+
+
 if [ "$NJT_HTTP_RDKAFKA" = "YES" ]; then
     . auto/lib/librdkafka/make
 fi
