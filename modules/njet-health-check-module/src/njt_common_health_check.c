@@ -92,7 +92,7 @@ njt_int_t njt_json_parse_ssl_protocols(njt_str_t value, njt_uint_t *np)
 
 #if (NJT_OPENSSL)
 
-njt_int_t njt_helper_hc_set_ssl(njt_helper_health_check_conf_t *hhccf, njt_helper_hc_ssl_conf_t *hcscf)
+njt_int_t njt_health_check_set_ssl(njt_health_check_conf_t *hhccf, njt_health_check_ssl_conf_t *hcscf)
 {
     njt_pool_cleanup_t  *cln;
 

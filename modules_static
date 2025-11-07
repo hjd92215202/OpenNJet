@@ -49,3 +49,5 @@
 ./modules/njet-stream-ftp-proxy-module
 #optional
 ./modules/njet-stream-mqtt-proxy-module
+#required
+./modules/njet-health-check-register-module
