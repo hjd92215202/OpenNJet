@@ -17,17 +17,10 @@
 #include "openrsync/extern.h"
 #include "openrsync/rsync_common.h"
 #include <utime.h>
+#include <njt_mqconf_module.h>
 
 extern njt_module_t  njt_gossip_module;
 extern sig_atomic_t  njt_reconfigure;
-
-#define NJT_KEEP_MASTER_CYCLE   1
-
-#define NJT_HELPER_CMD_NO       0
-#define NJT_HELPER_CMD_STOP     1
-#define NJT_HELPER_CMD_RESTART  2
-
-#define NJT_HELPER_VER          1
 
 #define INOTIFY_WATCH_BUF_SIZE 2048
 
@@ -60,19 +53,6 @@ static njt_str_t njt_helper_rsync_err_levels[] = {
 
 // enum{MASK = IN_MODIFY | IN_CREATE | IN_DELETE | IN_CLOSE_WRITE | IN_CLOSE_NOWRITE | IN_ACCESS| IN_OPEN| IN_DELETE_SELF|IN_MOVE_SELF};
 enum{MASK = IN_MOVE | IN_DELETE | IN_CREATE | IN_CLOSE_WRITE | IN_DELETE_SELF};
-
-typedef unsigned int (*helper_check_cmd_fp)(void *ctx);
-
-
-
-typedef struct {
-    njt_str_t   conf_fn;
-    njt_str_t   conf_fullfn;
-    helper_check_cmd_fp check_cmd_fp;
-    void *ctx;
-    void *cycle;
-    struct evt_ctx_t *mdb_ctx;
-} helper_param;
 
 struct rsync_status {
     int               is_master;
@@ -207,7 +187,7 @@ njt_helper_rsync_shm_init(njt_cycle_t *cycle)
     }
 
     njt_str_set(&shm->name ,"njt_helper_rsync_shm");
-    shm->size = 8 * 1024; // 4k is enough
+    shm->size = 8 * njt_pagesize;
     shm->log = cycle->log;
     if (njt_shm_alloc(shm) != NJT_OK) {
         njt_log_error(NJT_LOG_EMERG, sync_log, 0, "failed alloc rsync shm");

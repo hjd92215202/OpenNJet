@@ -31,14 +31,14 @@
 # optional, required by njet-openapi-paser-module
 ./modules/njet-jwt-module
 # optional
-./modules/njet-openapi-parser-module
+#./modules/njet-openapi-parser-module
 # optional, required by njet-stream-stsd-module
 ./modules/njet-stream-stsc-module
 # required
 ./modules/njet-http-api-register-module
 ./modules/njet-stream-sniffer-module
 # optional
-./modules/njet-stream-proto-server-module
+#./modules/njet-stream-proto-server-module
 #required
 ./modules/njet-http-ext-module
 #optional

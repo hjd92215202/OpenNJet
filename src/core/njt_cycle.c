@@ -350,13 +350,6 @@ njt_init_cycle(njt_cycle_t *old_cycle)
 
     // 只有在init_cycle中构建json
     njt_conf_json_op_start(log);
-#if (NJT_HELPER_GO_DYNCONF) // by lcm
-    njt_conf_element_t *conf_root;
-    cycle->conf_root = njt_pcalloc(cycle->pool, sizeof(njt_conf_element_t));
-    conf_root = cycle->conf_root;
-    njt_memzero(conf_root, sizeof(njt_conf_element_t));
-    njt_conf_init_conf_parse(cycle->conf_root, cycle->pool);
-#endif
 
 
     njt_share_slab_set_init_phase(cycle); // for dyn shm apply in post config
@@ -371,10 +364,6 @@ njt_init_cycle(njt_cycle_t *old_cycle)
     }
 
     njt_conf_json_op_end(log);
-#if (NJT_HELPER_GO_DYNCONF) // by lcm
-    njt_conf_finish_conf_parse();
-    njt_conf_check_svrname_listen(pool, conf_root);
-#endif
 
     if (njt_conf_parse_post(cycle) != NJT_CONF_OK) {
         environ = senv;
