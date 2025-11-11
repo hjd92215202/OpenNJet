@@ -1185,12 +1185,12 @@ njt_stream_dyn_server_delete_main_server(njt_stream_core_srv_conf_t *cscf)
 		if (cscfp[i] == cscf && cscf->listen == 1 && cscf->dynamic == 1)
 		{ // 动态，并且有listen，没listen 的没有做引用计数。 cscf->dynamic == 1
 			cscf->disable = 1;
+
+			njt_stream_dyn_server_clear_client(cscf);
 			njt_str_set(&key, STREAM_VS_OBJ);
 			njt_http_object_dispatch_notice(&key, DELETE_NOTICE, cscf);
-
 			njt_array_delete_idx(&cmcf->servers, i);
 	
-			njt_stream_dyn_server_clear_client(cscf);
 			pscf = cscf->ctx->srv_conf[njt_stream_proxy_module.ctx_index];
 			if (pscf != NULL && pscf->upstream != NULL)
 			{
