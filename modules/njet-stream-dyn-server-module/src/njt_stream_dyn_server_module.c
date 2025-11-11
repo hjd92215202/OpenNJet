@@ -19,12 +19,13 @@
 #include <njt_http_ext_module.h>
 #include <njt_stream_util.h>
 #include <njt_stream_proxy_module.h>
+extern njt_module_t *njt_stream_dyn_server_module_pt;
 extern njt_uint_t njt_worker;
-
+extern void njt_stream_proxy_finalize(njt_stream_session_t *s, njt_uint_t rc);
 extern njt_conf_check_cmd_handler_pt njt_conf_check_cmd_handler;
 extern njt_int_t njt_stream_optimize_servers(njt_conf_t *cf,
 											 njt_stream_core_main_conf_t *cmcf, njt_array_t *ports);
-
+void njt_stream_dyn_server_clear_client(njt_stream_core_srv_conf_t *cscf);
 // dyn_listen
 extern njt_int_t
 njt_stream_start_dyn_listen(njt_conf_t *cf, njt_uint_t pos);
@@ -57,10 +58,8 @@ static njt_int_t njt_stream_dyn_server_init(njt_conf_t *cf);
 static char *
 njt_stream_merge_servers(njt_conf_t *cf, njt_stream_core_main_conf_t *cmcf,
 						 njt_stream_module_t *module, njt_uint_t ctx_index);
-typedef struct njt_stream_dyn_server_ctx_s
-{
-} njt_stream_dyn_server_ctx_t, njt_stream_stream_dyn_server_ctx_t;
-
+static char *njt_stream_dyn_server_merge_srv_conf(njt_conf_t *cf, void *parent, void *child);
+static void *njt_stream_dyn_server_create_srv_conf(njt_conf_t *cf);
 static njt_stream_module_t njt_stream_dyn_server_module_ctx = {
 	NULL,						/* preconfiguration */
 	njt_stream_dyn_server_init, /* postconfiguration */
@@ -68,8 +67,8 @@ static njt_stream_module_t njt_stream_dyn_server_module_ctx = {
 	NULL, /* create main configuration */
 	NULL, /* init main configuration */
 
-	NULL, /* create server configuration */
-	NULL, /* merge server configuration */
+	njt_stream_dyn_server_create_srv_conf, /* create server configuration */
+	njt_stream_dyn_server_merge_srv_conf, /* merge server configuration */
 };
 
 njt_module_t njt_stream_dyn_server_module = {
@@ -88,8 +87,8 @@ njt_module_t njt_stream_dyn_server_module = {
 
 static njt_str_t njt_invalid_dyn_server_body[] = {
 	njt_string("zone"),
-	njt_string("location"),
-	// njt_string("if"),
+	njt_string("ftp_ctrl"),
+	njt_string("ftp_data"),
 	njt_string("ssl_ocsp"),
 	njt_string("ssl_stapling"),
 	njt_string("quic"),
@@ -570,7 +569,7 @@ static int njt_agent_server_change_handler_internal(njt_str_t *key, njt_str_t *v
 			{
 				if (from_api_add == 0)
 				{
-					// njt_log_error(NJT_LOG_ERR, njt_cycle->log, 0, "add topic_kv_change_handler error key=%V,value=%V",key,value);
+					njt_log_error(NJT_LOG_ERR, njt_cycle->log, 0, "add topic_kv_change_handler error key=%V,value=%V",key,value);
 					njt_kv_sendmsg(key, &del_topic, 0);
 				}
 				njt_log_error(NJT_LOG_DEBUG, njt_cycle->log, 0, "add topic_kv_change_handler error key=%V,value=%V", key, value);
@@ -655,6 +654,7 @@ static int topic_kv_change_handler(njt_str_t *key, njt_str_t *value, void *data)
 static njt_int_t
 njt_stream_dyn_server_init_worker(njt_cycle_t *cycle)
 {
+	njt_stream_dyn_server_module_pt = &njt_stream_dyn_server_module;
 
 	njt_str_t key = njt_string("stream_srv");
 	njt_kv_reg_handler_t h;
@@ -1189,18 +1189,18 @@ njt_stream_dyn_server_delete_main_server(njt_stream_core_srv_conf_t *cscf)
 			njt_http_object_dispatch_notice(&key, DELETE_NOTICE, cscf);
 
 			njt_array_delete_idx(&cmcf->servers, i);
-			if (cscf->ref_count == 0)
+	
+			njt_stream_dyn_server_clear_client(cscf);
+			pscf = cscf->ctx->srv_conf[njt_stream_proxy_module.ctx_index];
+			if (pscf != NULL && pscf->upstream != NULL)
 			{
-				pscf = cscf->ctx->srv_conf[njt_stream_proxy_module.ctx_index];
-				if (pscf != NULL && pscf->upstream != NULL)
-				{
-					pscf->upstream->ref_count --;
-					njt_stream_upstream_del((njt_cycle_t *)njt_cycle, pscf->upstream);
-				}
-				njt_log_error(NJT_LOG_DEBUG, njt_cycle->log, 0, "1 zyg delete ntj_destroy_pool server %V,ref_count=%d,pool=%p!", &cscf->server_name, cscf->ref_count, cscf->pool);
-				njt_stream_server_delete_dyn_var(cscf);
-				njt_destroy_pool(cscf->pool);
+				pscf->upstream->ref_count --;
+				njt_stream_upstream_del((njt_cycle_t *)njt_cycle, pscf->upstream);
 			}
+			njt_log_error(NJT_LOG_DEBUG, njt_cycle->log, 0, "1 zyg delete ntj_destroy_pool server %V,ref_count=%d,pool=%p!", &cscf->server_name, cscf->ref_count, cscf->pool);
+			njt_stream_server_delete_dyn_var(cscf);
+			njt_destroy_pool(cscf->pool);
+			
 			break;
 		}
 	}
@@ -1570,4 +1570,75 @@ failed:
 	*ctx = saved;
 
 	return rv;
+}
+static void *njt_stream_dyn_server_create_srv_conf(njt_conf_t *cf)
+{
+    njt_stream_dyn_server_srv_t  *conf;
+
+    conf = njt_pcalloc(cf->pool, sizeof(njt_stream_dyn_server_srv_t));
+    if (conf == NULL) {
+        return NULL;
+    }
+    return conf;
+}
+
+static char *njt_stream_dyn_server_merge_srv_conf(njt_conf_t *cf, void *parent, void *child)
+{
+    njt_stream_dyn_server_srv_t *conf = child;
+	if(cf->dynamic == 1) {
+		conf->session_queue = njt_pcalloc(cf->pool, sizeof(njt_queue_t));
+		if (conf == NULL)
+		{
+			 return NJT_CONF_ERROR;
+		}
+		njt_queue_init(conf->session_queue);
+	}
+	 return NJT_CONF_OK;
+}
+void njt_stream_dyn_server_clear_client(njt_stream_core_srv_conf_t *cscf)
+{
+    njt_stream_session_t *s;
+	njt_stream_dyn_server_srv_t *dyn_srv;
+	njt_queue_t            *q;
+	njt_stream_dyn_server_ctx_t *ctx;
+	njt_proxy_close_handler_pt close_handler;
+	dyn_srv = cscf->ctx->srv_conf[njt_stream_dyn_server_module.ctx_index];
+	if(cscf->dynamic == 0 || dyn_srv == NULL || dyn_srv->session_queue == NULL) {
+		return;
+	}
+	close_handler = dyn_srv->proxy_close_handler;
+	 for (q = njt_queue_head(dyn_srv->session_queue);
+         q != njt_queue_sentinel(dyn_srv->session_queue);
+         )
+    {
+        ctx = njt_queue_data(q, njt_stream_dyn_server_ctx_t, queue);
+		q = njt_queue_next(q);
+		s = ctx->s;
+		if(ctx != NULL && ctx->queue.prev) {
+			njt_queue_remove(&ctx->queue);
+			ctx->queue.prev = NULL;
+		}
+        if (s->connection && s->connection->fd != -1) {
+            if(s->upstream != NULL) {
+				if(close_handler ==  NULL) {
+					close_handler = njt_stream_proxy_finalize;
+				}
+				close_handler(s,NJT_STREAM_OK);
+			} else {
+				if(close_handler ==  NULL) {
+					close_handler = njt_stream_finalize_session;
+				}
+				close_handler(s,NJT_STREAM_OK);
+			}
+        }
+    }
+}
+void 
+njt_stream_dyn_server_set_finalize(njt_conf_t *cf,njt_proxy_close_handler_pt  proxy_close_handler)
+{
+	njt_stream_dyn_server_srv_t *dyn_srv;
+	dyn_srv = njt_stream_conf_get_module_srv_conf(cf, njt_stream_dyn_server_module);
+	if(dyn_srv != NULL) {
+		dyn_srv->proxy_close_handler = proxy_close_handler;
+	}
 }

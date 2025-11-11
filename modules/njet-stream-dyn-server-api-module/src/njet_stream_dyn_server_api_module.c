@@ -39,9 +39,6 @@ njt_stream_dyn_server_init(njt_conf_t *cf);
 extern njt_int_t njt_http_init_servers(njt_conf_t *cf,
                                        njt_http_core_srv_conf_t *cscf, njt_http_core_loc_conf_t *pclcf);
 
-typedef struct njt_stream_dyn_server_ctx_s
-{
-} njt_stream_dyn_server_ctx_t, njt_stream_stream_dyn_server_ctx_t;
 
 typedef struct njt_stream_dyn_server_main_conf_s
 { // njt_stream_dyn_server_main_cf_t

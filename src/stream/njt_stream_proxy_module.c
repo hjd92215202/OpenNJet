@@ -41,7 +41,7 @@ static void njt_stream_proxy_process(njt_stream_session_t *s,
 static njt_int_t njt_stream_proxy_test_finalize(njt_stream_session_t *s,
     njt_uint_t from_upstream);
 static void njt_stream_proxy_next_upstream(njt_stream_session_t *s);
-static void njt_stream_proxy_finalize(njt_stream_session_t *s, njt_uint_t rc);
+void njt_stream_proxy_finalize(njt_stream_session_t *s, njt_uint_t rc);
 static u_char *njt_stream_proxy_log_error(njt_log_t *log, u_char *buf,
     size_t len);
 
@@ -2252,7 +2252,7 @@ njt_stream_proxy_next_upstream(njt_stream_session_t *s)
 }
 
 
-static void
+void
 njt_stream_proxy_finalize(njt_stream_session_t *s, njt_uint_t rc)
 {
     njt_uint_t              state;
