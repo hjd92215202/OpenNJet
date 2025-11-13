@@ -5,10 +5,9 @@
 #include <njt_core.h>
 #include <njt_http.h>
 #include <njt_hash_util.h>
-
 #include "njt_health_check_register_module.h"
 
-static njt_lvlhsh_t *njt_health_check_register_modules = NULL;
+static njt_lvlhsh_t njt_health_check_register_modules;
 static njt_pool_t *njt_hc_register_pool = NULL;
 
 
@@ -16,8 +15,6 @@ static njt_int_t njt_health_check_register_init_worker(njt_cycle_t *cycle);
 
 static void njt_health_check_register_exit_worker(njt_cycle_t *cycle);
 
-static njt_health_check_reg_info_t *
-njt_health_check_register_find_handler(njt_str_t *module_key);
 
 
 static njt_int_t
@@ -66,13 +63,13 @@ njt_module_t njt_health_check_register_module = {
 };
 
 
-static njt_health_check_reg_info_t *
-njt_health_check_register_find_handler(njt_str_t *module_key){
+njt_health_check_reg_info_t *
+njt_health_check_register_find_handler(njt_str_t *server_type){
     njt_lvlhsh_query_t                  lhq;
     njt_uint_t                          rc;
 
     //check param
-    if(module_key == NULL){
+    if(server_type == NULL){
         njt_log_error(NJT_LOG_ERR, njt_cycle->log, 0, 
                     "input health check module key is null");
 
@@ -87,17 +84,14 @@ njt_health_check_register_find_handler(njt_str_t *module_key){
     }
 
     //servername to peers
-    lhq.key = *module_key;
+    lhq.key = *server_type;
     lhq.key_hash = njt_murmur_hash2(lhq.key.data, lhq.key.len);
     lhq.proto = &njt_hc_register_lvlhsh_proto;
 
     //find
     rc = njt_lvlhsh_find(&njt_health_check_register_modules, &lhq);
     if(rc == NJT_OK){
-        njt_log_error(NJT_LOG_ERR, njt_cycle->log, 0, 
-                "%V not register in health_check", module_key);
-
-        return NJT_ERROR;
+        return lhq.value;
     }
 
     return NULL;
@@ -146,8 +140,8 @@ njt_int_t njt_health_check_register_reg_handler(njt_health_check_reg_info_t *reg
 
     //check param
     if(reg_info == NULL || reg_info->server_type == NULL 
-        || reg_info->server_type->len < 1 || reg_info->config_check == NULL
-        || reg_info->start_check == NULL){
+        || reg_info->server_type->len < 1
+        || reg_info->start_check == NULL || reg_info->create_ctx == NULL){
         njt_log_error(NJT_LOG_ERR, njt_cycle->log, 0, 
                     "health_check register error, param error");
 

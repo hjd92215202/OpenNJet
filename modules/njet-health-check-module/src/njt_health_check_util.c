@@ -8,34 +8,10 @@
 #include <njt_core.h>
 #include <njet.h>
 #include <njt_event.h>
-// #include <njt_json_api.h>
-// #include <njt_json_util.h>
 #include <njt_http.h>
 #include <njt_stream.h>   /* by zhaokang */
-
-#include "njt_common_health_check.h"
-
-// /**
-//  * 它接受一个字符串，将其解析为时间，并将结果存储在 njt_msec_t 变量中
-//  *
-//  * @param el 要解析的 json 元素
-//  * @param def 字段的定义。
-//  * @param data 指向数据结构的指针
-//  *
-//  * @return 返回值是解析的状态。
-//  */
-// njt_int_t njt_json_parse_msec(njt_json_element *el, void *data){
-//     njt_int_t tmp;
-//     njt_msec_t *target = data ;
-//     tmp = njt_parse_time(&el->strval, 0);
-//     if(tmp == NJT_ERROR){
-//         return NJT_ERROR;
-//     }
-//     target= data;
-//     *target = tmp;
-//     return NJT_OK;
-// }
-
+#include "njt_health_check_util.h"
+extern njt_cycle_t *njet_master_cycle;
 
 #if (NJT_OPENSSL)
 static njt_conf_bitmask_t  njt_http_ssl_protocols[] = {
@@ -49,7 +25,7 @@ static njt_conf_bitmask_t  njt_http_ssl_protocols[] = {
         { njt_null_string, 0 }
 };
 
-njt_int_t njt_json_parse_ssl_protocols(njt_str_t value, njt_uint_t *np)
+njt_int_t njt_health_check_json_parse_ssl_protocols(njt_str_t value, njt_uint_t *np)
 {
     njt_uint_t          i, m;
     njt_conf_bitmask_t  *mask;
@@ -196,65 +172,6 @@ njt_int_t njt_health_check_set_ssl(njt_health_check_conf_t *hhccf, njt_health_ch
 #endif
 
 
-
-
-/**
- * > 按名称查找upstream配置
- *
- * @param cycle 当前cycle。
- * @param name upstream的名称。
- *
- * @return njt_http_upstream_srv_conf_t
- */
-njt_http_upstream_srv_conf_t* njt_http_find_upstream_by_name(njt_cycle_t *cycle,njt_str_t *name){
-    njt_http_upstream_main_conf_t  *umcf;
-    njt_http_upstream_srv_conf_t   **uscfp;
-    njt_uint_t i;
-
-    umcf = njt_http_cycle_get_module_main_conf(cycle, njt_http_upstream_module);
-    if(umcf == NULL){
-        return NULL;
-    }
-
-    uscfp = umcf->upstreams.elts;
-
-    for (i = 0; i < umcf->upstreams.nelts; i++) {
-        if (uscfp[i]->host.len != name->len
-            || njt_strncasecmp(uscfp[i]->host.data, name->data, name->len) != 0 || uscfp[i]->srv_conf == NULL ) {
-            continue;
-        }
-        return uscfp[i];
-    }
-    return NULL;
-}
-
-// by zhaokang
-njt_stream_upstream_srv_conf_t *njt_stream_find_upstream_by_name(njt_cycle_t *cycle, njt_str_t *name) {
-    njt_stream_upstream_srv_conf_t   **uscfp;
-    njt_stream_upstream_main_conf_t   *umcf;
-    njt_uint_t                         i;
-
-    umcf = njt_stream_cycle_get_module_main_conf(njet_master_cycle, njt_stream_upstream_module);
-
-    if(umcf == NULL){
-        return NULL;
-    }
-
-    uscfp = umcf->upstreams.elts;
-    for (i = 0; i < umcf->upstreams.nelts; i++) {
-        if (uscfp[i]->host.len != name->len
-                || njt_strncasecmp(uscfp[i]->host.data, name->data, name->len) != 0) {
-            
-            continue;
-        }
-
-        return uscfp[i];
-    }
-
-    return NULL;
-}
-
-
 void njt_http_upstream_traver(void *ctx,njt_int_t (*item_handle)(void *ctx,njt_http_upstream_srv_conf_t *)){
     njt_http_upstream_main_conf_t  *umcf;
     njt_http_upstream_srv_conf_t   **uscfp;
@@ -358,4 +275,62 @@ char* njt_hex2bin(njt_str_t *d, njt_str_t *s, int count)
         hex = 0;
     }
     return dst;
+}
+
+/**
+ * > 按名称查找upstream配置
+ *
+ * @param cycle 当前cycle。
+ * @param name upstream的名称。
+ *
+ * @return njt_http_upstream_srv_conf_t
+ */
+njt_http_upstream_srv_conf_t* njt_health_check_find_http_upstream_by_name(njt_cycle_t *cycle,njt_str_t *name){
+    njt_http_upstream_main_conf_t  *umcf;
+    njt_http_upstream_srv_conf_t   **uscfp;
+    njt_uint_t i;
+
+    umcf = njt_http_cycle_get_module_main_conf(cycle, njt_http_upstream_module);
+    if(umcf == NULL){
+        return NULL;
+    }
+
+    uscfp = umcf->upstreams.elts;
+
+    for (i = 0; i < umcf->upstreams.nelts; i++) {
+        if (uscfp[i]->host.len != name->len
+            || njt_strncasecmp(uscfp[i]->host.data, name->data, name->len) != 0 || uscfp[i]->srv_conf == NULL ) {
+            continue;
+        }
+        return uscfp[i];
+    }
+    return NULL;
+}
+
+
+
+// by zhaokang
+njt_stream_upstream_srv_conf_t *njt_health_check_find_stream_upstream_by_name(njt_cycle_t *cycle, njt_str_t *name) {
+    njt_stream_upstream_srv_conf_t   **uscfp;
+    njt_stream_upstream_main_conf_t   *umcf;
+    njt_uint_t                         i;
+
+    umcf = njt_stream_cycle_get_module_main_conf(cycle, njt_stream_upstream_module);
+
+    if(umcf == NULL){
+        return NULL;
+    }
+
+    uscfp = umcf->upstreams.elts;
+    for (i = 0; i < umcf->upstreams.nelts; i++) {
+        if (uscfp[i]->host.len != name->len
+                || njt_strncasecmp(uscfp[i]->host.data, name->data, name->len) != 0) {
+            
+            continue;
+        }
+
+        return uscfp[i];
+    }
+
+    return NULL;
 }

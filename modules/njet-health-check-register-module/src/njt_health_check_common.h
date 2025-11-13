@@ -4,8 +4,8 @@
  * Copyright (C) 2021-2023  TMLake(Beijing) Technology Co., Ltd.
  */
 
-#ifndef NJET_MAIN_NJT_COMMON_HEALTH_CHECK_H
-#define NJET_MAIN_NJT_COMMON_HEALTH_CHECK_H
+#ifndef NJT_HEALTH_CHECK_COMMON_H
+#define NJT_HEALTH_CHECK_COMMON_H
 
 #include <njt_config.h>
 #include <njt_core.h>
@@ -14,18 +14,35 @@
 #include <njt_json_api.h>
 #include <njt_json_util.h>
 #include <njt_http.h>
-// #include <njt_hc_parser.h>
+#include <njt_stream.h>
+#include "njt_health_check_register_module.h"
 
-#define NJT_HC_HTTP_TYPE 0
-#define NJT_HC_STREAM_TYPE 1
 
-extern njt_cycle_t *njet_master_cycle;
+enum {
+    HC_SUCCESS = 0,
+    HC_TYPE_NOT_FOUND,
+    HC_UPSTREAM_NOT_FOUND,
+    HC_VERSION_NOT_SUPPORT,
+    HC_CA_NOT_CONF,
+    HC_CERTIFICATE_NOT_CONF,
+    HC_CERTIFICATE_KEY_NOT_CONF,
+    HC_SERVER_ERROR,
+    HC_DOUBLE_SET,
+    HC_BODY_ERROR,
+    HC_PATH_NOT_FOUND,
+    HC_METHOD_NOT_ALLOW,
+    HC_NOT_FOUND,
+    PORT_NOT_ALLOW,
+    UDP_NOT_SUPPORT_TLS,
+    SMYSQL_NOT_SUPPORT_SSL_CONFIG,
+    HC_SMYSQL_DB_NOT_SET_ERROR,
+    HC_RESP_DONE
+} NJT_HTTP_API_HC_ERROR;
 
-typedef struct {
-    njt_queue_t hc_queue; // 健康检查列表
-   // njt_event_t check_upstream; //
-    unsigned first:1;
-} njt_health_check_main_conf_t;
+
+
+
+
 
 #if (NJT_OPENSSL)
 typedef struct njt_health_check_ssl_conf_s {
@@ -55,12 +72,12 @@ typedef struct njt_health_check_ssl_conf_s {
 typedef struct {
     njt_http_upstream_rr_peer_t *peer;   //current peer
     njt_queue_t  datas;     //other peers which has same servername of the current peer
-} njt_hc_http_same_peer_t;
+} njt_health_check_http_same_peer_t;
 
 typedef struct {
     njt_stream_upstream_rr_peer_t *peer;   //current peer
     njt_queue_t  datas;     //other peers which has same servername of the current peer
-} njt_hc_stream_same_peer_t;
+} njt_health_check_stream_same_peer_t;
 
 
 
@@ -68,9 +85,10 @@ typedef struct {
 typedef struct njt_health_check_conf_s {
     njt_pool_t  *pool;
     njt_log_t   *log;
+    njt_health_check_reg_info_t *reg;
     njt_queue_t queue;
     njt_uint_t  module_type;
-    njt_int_t   real_server_type;
+    njt_str_t   server_type;
     njt_uint_t  curr_delay;
     njt_uint_t  curr_frame;
     njt_str_t   upstream_name;
@@ -78,7 +96,6 @@ typedef struct njt_health_check_conf_s {
     njt_msec_t  visit_interval;
     njt_msec_t  jitter;
     njt_msec_t  timeout;
-    njt_uint_t  transport_protocol;
     njt_uint_t  port;
     njt_uint_t  passes;
     njt_uint_t  fails;
@@ -103,7 +120,7 @@ typedef struct {
     njt_str_t status;
     njt_array_t headers;
     njt_str_t body;
-} njt_health_check_http_add_data_t;
+} njt_health_check_add_data_t;
 
 typedef struct {
     njt_str_t send;
@@ -135,45 +152,44 @@ typedef struct {
 
 
 
-typedef struct {
-    njt_str_t       upstream_name;
-    njt_str_t       hc_type;
-    health_check_t *hc_data;
-    bool            persistent;
-    bool            mandatory;
-    unsigned        success: 1;
-    njt_int_t       rc;
-} njt_hc_api_data_t;
+typedef void (*njt_health_check_interal_update_handler)(void *hc_peer, njt_int_t status);
 
-
-
-#define HTTP_HEALTH_CHECK_SEPARATOR "$"
-#define HTTP_UPSTREAM_KEYS "helper_hc_http_upstreams"
-#define UPSTREAM_NAME_PREFIX "helper_hc_http_upstream" HTTP_HEALTH_CHECK_SEPARATOR
-#define HTTP_HEALTH_CHECK_CONFS "helper_hc_confs"
-#define HTTP_HEALTH_CHECK_CONF_INFO "helper_hc_conf_info" HTTP_HEALTH_CHECK_SEPARATOR
-
-/* by zhaokang */
-#define STREAM_HEALTH_CHECK_SEPARATOR     "$"
-#define STREAM_UPSTREAM_KEYS              "stream_helper_hc_stream_upstreams"
-#define STREAM_UPSTREAM_NAME_PREFIX       "stream_helper_hc_stream_upstream"     STREAM_HEALTH_CHECK_SEPARATOR
-#define STREAM_HEALTH_CHECK_CONFS         "stream_helper_hc_confs"
-#define STREAM_HEALTH_CHECK_CONF_INFO     "stream_helper_hc_conf_info"             STREAM_HEALTH_CHECK_SEPARATOR
-
-
-
-// njt_int_t njt_json_parse_msec(njt_json_element *el, njt_json_define_t *def, void *data);
-
-// njt_int_t njt_json_parse_data(njt_pool_t *pool, njt_str_t *str, njt_json_define_t *def, void *data);
-
-#if (NJT_OPENSSL)
-
-njt_int_t njt_json_parse_ssl_protocols(njt_str_t value, njt_uint_t *np);
-
-njt_int_t njt_health_check_set_ssl(njt_health_check_conf_t *hhccf, njt_health_check_ssl_conf_t *hcscf);
-
+typedef struct njt_health_check_peer_s {
+    njt_uint_t                      peer_id;
+    njt_uint_t                      update_id;
+    njt_str_t                       server;
+    njt_health_check_conf_t         *hhccf;
+    njt_pool_t                      *pool;
+    njt_peer_connection_t           peer;
+    njt_health_check_interal_update_handler    update_handler;
+    njt_buf_t                       *send_buf;
+    njt_buf_t                       *recv_buf;
+    njt_chain_t                     *recv_chain;
+    njt_chain_t                     *last_chain_node;
+    void                            *parser;
+#if (NJT_HTTP_SSL)
+    njt_str_t                       ssl_name;
 #endif
+    void                            *data;       //can used as customer data
+} njt_health_check_peer_t;
 
-njt_http_upstream_srv_conf_t* njt_http_find_upstream_by_name(njt_cycle_t *cycle,njt_str_t *name);
+/*Type of callbacks of the checker*/
 
-#endif //NJET_MAIN_NJT_COMMON_HEALTH_CHECK_H
+typedef njt_int_t (*njt_health_check_process_pt)(njt_health_check_peer_t *peer);
+
+typedef njt_int_t (*njt_health_check_event_handler)(njt_event_t *ev);
+
+typedef void (*njt_health_check_update_pt)(njt_health_check_peer_t *hc_peer, njt_int_t status);
+
+typedef struct {
+    njt_health_check_event_handler write_handler;
+    njt_health_check_event_handler read_handler;
+    njt_health_check_process_pt process;
+    njt_health_check_update_pt update;
+
+} njt_health_check_checker_t;
+
+
+
+
+#endif //NJT_HEALTH_CHECK_COMMON_H
