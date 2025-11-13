@@ -389,7 +389,7 @@ static njt_health_check_reg_info_t * njt_health_check_get_reg_module(njt_str_t *
     }
 
     //http is just used for http upstream do http check
-    if(hc_type->len == 4 && njt_strncasecmp(hc_type->data, "http", 4) == 0){
+    if(hc_type->len == 4 && njt_strncasecmp(hc_type->data, (u_char *)"http", 4) == 0){
         return njt_health_check_register_find_handler(hc_type);
     }
 
