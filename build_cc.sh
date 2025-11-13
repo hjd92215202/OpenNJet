@@ -157,39 +157,39 @@ PATH_INFO=" --conf-path=$NJET_CONF_PATH \
     --data-prefix-path=$NJET_REAL_DATA_PREFIX_PATH \
 "
 
-if [ $NJET_ERROR_LOG_PATH ]; then
+if [ "$NJET_ERROR_LOG_PATH" ]; then
     PATH_INFO="$PATH_INFO --error-log-path=$NJET_ERROR_LOG_PATH"
 fi
 
-if [ $NJT_PID_PATH ]; then
+if [ "$NJT_PID_PATH" ]; then
     PATH_INFO="$PATH_INFO --pid-path=$NJT_PID_PATH"
 fi
 
-if [ $NJT_LOCK_PATH ]; then
+if [ "$NJT_LOCK_PATH" ]; then
     PATH_INFO="$PATH_INFO --lock-path=$NJT_LOCK_PATH"
 fi
 
-if [ $NJT_HTTP_LOG_PATH ]; then
+if [ "$NJT_HTTP_LOG_PATH" ]; then
     PATH_INFO="$PATH_INFO --http-log-path=$NJT_HTTP_LOG_PATH"
 fi
 
-if [ $NJT_HTTP_CLIENT_TEMP_PATH ]; then
+if [ "$NJT_HTTP_CLIENT_TEMP_PATH" ]; then
     PATH_INFO="$PATH_INFO --http-client-body-temp-path=$NJT_HTTP_CLIENT_TEMP_PATH"
 fi
 
-if [ $NJT_HTTP_PROXY_TEMP_PATH ]; then
+if [ "$NJT_HTTP_PROXY_TEMP_PATH" ]; then
     PATH_INFO="$PATH_INFO --http-proxy-temp-path=$NJT_HTTP_PROXY_TEMP_PATH"
 fi
 
-if [ $NJT_HTTP_FASTCGI_TEMP_PATH ]; then
+if [ "$NJT_HTTP_FASTCGI_TEMP_PATH" ]; then
     PATH_INFO="$PATH_INFO --http-fastcgi-temp-path=$NJT_HTTP_FASTCGI_TEMP_PATH"
 fi
 
-if [ $NJT_HTTP_UWSGI_TEMP_PATH ]; then
+if [ "$NJT_HTTP_UWSGI_TEMP_PATH" ]; then
     PATH_INFO="$PATH_INFO --http-uwsgi-temp-path=$NJT_HTTP_UWSGI_TEMP_PATH"
 fi
 
-if [ $NJT_HTTP_SCGI_TEMP_PATH ]; then
+if [ "$NJT_HTTP_SCGI_TEMP_PATH" ]; then
     PATH_INFO="$PATH_INFO --http-scgi-temp-path=$NJT_HTTP_SCGI_TEMP_PATH"
 fi
 
@@ -224,24 +224,24 @@ fi
 #api doc make tar file
 doctar=doc.tar
 
-if [ -f $doctar ]
+if [ -f "$doctar" ]
 then
    rm $doctar
 fi
 
-if [ -f $doctar.gz ]
+if [ -f "$doctar.gz" ]
 then
    rm $doctar.gz
 fi
 tar cvf $doctar doc
 gzip $doctar
 xxd -i $doctar.gz > src/http/njt_doc_gz.h
-if [ -f $doctar ]
+if [ -f "$doctar" ]
 then
    rm $doctar
 fi
 
-if [ -f $doctar.gz ]
+if [ -f "$doctar.gz" ]
 then
    rm $doctar.gz
 fi
@@ -286,8 +286,8 @@ cdir=`cd $(dirname $0); pwd`
 		        if [ -d auto/lib/modsecurity/src/.libs ]; then
                   cp -a auto/lib/modsecurity/src/.libs/libmodsecurity.so* ${DESTDIR}${NJET_PREFIX}/lib
                 fi
-		        if [ -d auto/lib/keepalived/keepalived/emb/.libs ]; then
-                  cp -a auto/lib/keepalived/keepalived/emb/.libs/libha_emb.so* ${DESTDIR}${NJET_PREFIX}/lib;
+		        if [ -d modules/njet-helper-ha-module/keepalived/keepalived/emb/.libs ]; then
+                  cp -a modules/njet-helper-ha-module/keepalived/keepalived/emb/.libs/libha_emb.so* ${DESTDIR}${NJET_PREFIX}/lib;
                 fi 
 		        if [ -f auto/lib/librdkafka/build/src/librdkafka.so ]; then
                   cp -a auto/lib/librdkafka/build/src/librdkafka.so* ${DESTDIR}${NJET_PREFIX}/lib
@@ -296,11 +296,11 @@ cdir=`cd $(dirname $0); pwd`
                 mkdir -p ${DESTDIR}${NJET_PREFIX}/lib/tcc
                 if [ -f auto/lib/tcc-0.9.26/x86-64/libtcc1.a ]; then
                     mkdir -p ${DESTDIR}${NJET_PREFIX}/lib/tcc/x86-64
-                    cp -fr auto/lib/tcc-0.9.26/libtcc1.a ${DESTDIR}${NJET_PREFIX}/lib/tcc/x86-64
+                    cp -fL auto/lib/tcc-0.9.26/x86-64/libtcc1.a ${DESTDIR}${NJET_PREFIX}/lib/tcc/x86-64
                 fi
                 if [ -f auto/lib/tcc-0.9.26/arm64/libtcc1.a ]; then
                     mkdir -p ${DESTDIR}${NJET_PREFIX}/lib/tcc/arm64
-                    cp -fr auto/lib/tcc-0.9.26/libtcc1.a  ${DESTDIR}${NJET_PREFIX}/lib/tcc/arm64
+                    cp -fL auto/lib/tcc-0.9.26/arm64/libtcc1.a  ${DESTDIR}${NJET_PREFIX}/lib/tcc/arm64
                 fi
                 if [ -f modules/njet-stream-proto-server-module/src/njt_tcc.h ]; then
                     mkdir -p ${DESTDIR}${NJET_PREFIX}/lib/tcc/include
@@ -328,7 +328,8 @@ cdir=`cd $(dirname $0); pwd`
                 rm -f auto/lib/keepalived/Makefile
                 cd auto/lib/modsecurity; make clean; cd -;
                 cd auto/lib/librdkafka; make clean; cd -;
-		        cd auto/lib/luapkg; make clean; cd -;
+		cd auto/lib/luapkg; make clean; cd -;
+		cd auto/lib/tcc-0.9.26; make clean; cd -;
                 make clean
                 ;;
             # release)

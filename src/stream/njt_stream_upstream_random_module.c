@@ -19,7 +19,7 @@ typedef struct {
 typedef struct {
     njt_uint_t                              two;
     njt_stream_upstream_random_range_t     *ranges;
-    njt_uint_t                              update_id;
+    //njt_uint_t                              update_id;
 } njt_stream_upstream_random_srv_conf_t;
 
 
@@ -101,7 +101,7 @@ njt_stream_upstream_init_random(njt_conf_t *cf,
     if (njt_stream_upstream_init_round_robin(cf, us) != NJT_OK) {
         return NJT_ERROR;
     }
-
+    us->update_id = NJT_CONF_UNSET_UINT;
     us->peer.init = njt_stream_upstream_init_random_peer;
 
 #if (NJT_STREAM_UPSTREAM_ZONE)
@@ -128,6 +128,18 @@ njt_stream_upstream_update_random(njt_pool_t *pool,
     rcf = njt_stream_conf_upstream_srv_conf(us,
                                             njt_stream_upstream_random_module);
     peers = us->peer.data;
+    if (us->update_id == peers->update_id && us->update_id != NJT_CONF_UNSET_UINT)
+    {
+        return NJT_OK;
+    }
+    if (us->update_id == NJT_CONF_UNSET_UINT)
+    {
+        us->update_id = 0;
+    }
+    else
+    {
+        us->update_id = peers->update_id;
+    }
 
     size = peers->number * sizeof(njt_stream_upstream_random_range_t);
 
@@ -139,6 +151,10 @@ njt_stream_upstream_update_random(njt_pool_t *pool,
     total_weight = 0;
 
     for (peer = peers->peer, i = 0; peer; peer = peer->next, i++) {
+        if (peer->del_pending == 1)
+        {
+            break;
+        }
         ranges[i].peer = peer;
         ranges[i].range = total_weight;
         total_weight += peer->weight;
@@ -188,11 +204,11 @@ njt_stream_upstream_init_random_peer(njt_stream_session_t *s,
     njt_stream_upstream_rr_peers_rlock(rp->rrp.peers);
 
 #if (NJT_STREAM_UPSTREAM_ZONE)
-    if(rp->rrp.peers->shpool && (rcf->ranges != NULL && rp->rrp.peers->update_id != rcf->update_id)) {
+    if(rp->rrp.peers->shpool && (rcf->ranges != NULL && rp->rrp.peers->update_id != us->update_id)) {
 	njt_free(rcf->ranges);	
 	rcf->ranges = NULL;
     }
-    rcf->update_id = rp->rrp.peers->update_id;
+    //us->update_id = rp->rrp.peers->update_id;
     if (rp->rrp.peers->shpool && rcf->ranges == NULL) {
         if (njt_stream_upstream_update_random(NULL, us) != NJT_OK) {
             njt_stream_upstream_rr_peers_unlock(rp->rrp.peers);
@@ -462,7 +478,7 @@ njt_stream_upstream_random_create_conf(njt_conf_t *cf)
      *
      *     conf->two = 0;
      */
-    conf->update_id = NJT_CONF_UNSET_UINT;
+    //conf->update_id = NJT_CONF_UNSET_UINT;
     return conf;
 }
 
