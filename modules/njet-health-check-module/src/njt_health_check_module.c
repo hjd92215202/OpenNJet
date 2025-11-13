@@ -383,13 +383,18 @@ static void njt_health_check_api_read_data(njt_http_request_t *r){
 static njt_health_check_reg_info_t * njt_health_check_get_reg_module(njt_str_t *hc_type){
     njt_str_t           sub_type;
 
-    sub_type = *hc_type;
-
-    // [stcp|sudp|smysql] start with s, return NJT_STREAM_MODULE
-    if(hc_type->len > 2 && hc_type->data[0] == 's'){
-        sub_type.len = hc_type->len - 1;
-        sub_type.data = hc_type->data + 1;
+    if(hc_type->len < 2){
+        njt_log_error(NJT_LOG_ERR, njt_cycle->log, 0, " health check type not valid !!");
+        return NULL;
     }
+
+    //http is just used for http upstream do http check
+    if(hc_type->len == 4 && njt_strncasecmp(hc_type->data, "http", 4) == 0){
+        return njt_health_check_register_find_handler(hc_type);
+    }
+
+    sub_type.len = hc_type->len - 1;
+    sub_type.data = hc_type->data + 1;
 
     return njt_health_check_register_find_handler(&sub_type);
 }
