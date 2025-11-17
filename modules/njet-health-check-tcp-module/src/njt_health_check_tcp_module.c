@@ -23,7 +23,7 @@
 static void njt_health_check_tcp_module_start_check(void *hc_peer_info, interal_update_handler udpate_handler);
 static void *njt_health_check_tcp_module_create_ctx(void *hhccf_info, void *api_data_info);
 static void njt_health_check_tcp_dummy_handler(njt_event_t *ev);
-static njt_int_t   njt_health_check_tcp_module_postconfiguration(njt_conf_t *cf);
+static njt_int_t njt_health_check_tcp_module_init_process(njt_cycle_t *cycle);
 static njt_int_t njt_health_check_tcp_module_test_connect(njt_connection_t *c);
 static void njt_health_check_close_tcp_connection(njt_connection_t *c);
 static void njt_health_check_tcp_module_free_peer_resource(njt_health_check_peer_t *hc_peer, njt_int_t status);
@@ -33,7 +33,8 @@ static njt_int_t njt_health_check_tcp_recv_handler(njt_event_t *rev);
 static void njt_health_check_tcp_module_write_handler(njt_event_t *wev);
 static void njt_health_check_tcp_module_read_handler(njt_event_t *rev);
 static njt_int_t 
-njt_health_check_tcp_match_block(njt_health_check_api_data_t *api_data, njt_health_check_conf_t *hhccf);
+njt_health_check_tcp_match_block(njt_health_check_api_data_t *api_data, njt_health_check_conf_t *hhccf,
+        njt_health_check_tcp_module_conf_ctx_t *tcp_ctx);
 static njt_int_t
 njt_health_check_tcp_ssl_init_connection(njt_connection_t *c, njt_health_check_peer_t *hc_peer);
 
@@ -41,7 +42,7 @@ extern njt_cycle_t *njet_master_cycle;
 
 static njt_http_module_t njt_health_check_tcp_module_ctx = {
         NULL,                                   /* preconfiguration */
-        njt_health_check_tcp_module_postconfiguration,          /* postconfiguration */
+        NULL,          /* postconfiguration */
 
         NULL,                                   /* create main configuration */
         NULL,                                  /* init main configuration */
@@ -60,7 +61,7 @@ njt_module_t njt_health_check_tcp_module = {
         NJT_HTTP_MODULE,                        /* module type */
         NULL,                                   /* init master */
         NULL,                                   /* init module */
-        NULL,                                   /* init process */
+        njt_health_check_tcp_module_init_process,                                   /* init process */
         NULL,                                   /* init thread */
         NULL,                                   /* exit thread */
         NULL,                                   /* exit process */
@@ -77,7 +78,7 @@ static njt_health_check_checker_t tcp_checker = {
 };
 
 
-static njt_int_t   njt_health_check_tcp_module_postconfiguration(njt_conf_t *cf){
+static njt_int_t njt_health_check_tcp_module_init_process(njt_cycle_t *cycle){
     njt_health_check_reg_info_t             h;
 
     njt_str_t  server_type = njt_string("tcp");
@@ -191,7 +192,7 @@ static void *njt_health_check_tcp_module_create_ctx(void *hhccf_info, void *api_
 
     tcp_ctx->checker = &tcp_checker;
 
-    rc = njt_health_check_tcp_match_block(api_data, hhccf);
+    rc = njt_health_check_tcp_match_block(api_data, hhccf, tcp_ctx);
     if (rc != HC_SUCCESS) {
         return NULL;
     }
@@ -459,13 +460,12 @@ njt_health_check_tcp_ssl_init_connection(njt_connection_t *c, njt_health_check_p
 */
 char* njt_hex2bin(njt_str_t *d, njt_str_t *s, int count);
 static njt_int_t 
-njt_health_check_tcp_match_block(njt_health_check_api_data_t *api_data, njt_health_check_conf_t *hhccf) {
-    njt_health_check_tcp_module_conf_ctx_t *tcp_ctx; 
+njt_health_check_tcp_match_block(njt_health_check_api_data_t *api_data, njt_health_check_conf_t *hhccf,
+        njt_health_check_tcp_module_conf_ctx_t *tcp_ctx) {
     njt_health_check_tcp_match_t                 *match;
     njt_str_t                          val;
     char *p = NULL;
-    /* stream health check context */
-    tcp_ctx = hhccf->ctx;
+
 
     tcp_ctx->match = njt_pcalloc(hhccf->pool, sizeof(njt_health_check_tcp_match_t)); 
     if (tcp_ctx->match == NULL) {

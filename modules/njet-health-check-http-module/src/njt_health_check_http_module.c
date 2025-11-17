@@ -34,7 +34,8 @@
 #define NJT_HTTP_PARSE_BODY           4
 
 
-static njt_int_t   njt_health_check_http_module_postconfiguration(njt_conf_t *cf);
+// static njt_int_t   njt_health_check_http_module_postconfiguration(njt_conf_t *cf);
+static njt_int_t njt_health_check_http_module_init_process(njt_cycle_t *cycle);
 static void
 njt_health_check_http_module_http_update_status(njt_health_check_peer_t *hc_peer, njt_int_t status);
 
@@ -44,7 +45,8 @@ static void njt_health_check_http_module_only_check_port_handler(njt_event_t *ev
 static void njt_health_check_http_module_free_peer_resource(njt_health_check_peer_t *hc_peer, njt_int_t status);
 static njt_int_t
 njt_health_check_http_ssl_init_connection(njt_connection_t *c, njt_health_check_peer_t *hc_peer);
-static njt_int_t njt_health_check_http_match_block(njt_health_check_api_data_t *api_data, njt_health_check_conf_t *hhccf);
+static njt_int_t njt_health_check_http_match_block(njt_health_check_api_data_t *api_data,
+        njt_health_check_conf_t *hhccf, njt_health_check_http_module_conf_ctx_t *http_ctx);
 static void njt_health_check_close_http_connection(njt_connection_t *c);
 static njt_int_t njt_health_check_http_module_http_write_handler(njt_event_t *wev);
 static njt_int_t njt_health_check_http_module_http_read_handler(njt_event_t *rev);
@@ -57,10 +59,11 @@ static njt_int_t njt_health_check_http_process_body(njt_health_check_peer_t *hc_
 
 
 extern njt_cycle_t *njet_master_cycle;
+extern health_check_http_header_item_t* get_health_check_http_header_item(health_check_http_header_t *out, size_t idx);
 
 static njt_http_module_t njt_health_check_http_module_ctx = {
         NULL,                                   /* preconfiguration */
-        njt_health_check_http_module_postconfiguration,          /* postconfiguration */
+        NULL,          /* postconfiguration */
 
         NULL,                                   /* create main configuration */
         NULL,                                  /* init main configuration */
@@ -79,7 +82,7 @@ njt_module_t njt_health_check_http_module = {
         NJT_HTTP_MODULE,                        /* module type */
         NULL,                                   /* init master */
         NULL,                                   /* init module */
-        NULL,                                   /* init process */
+        njt_health_check_http_module_init_process,                                   /* init process */
         NULL,                                   /* init thread */
         NULL,                                   /* exit thread */
         NULL,                                   /* exit process */
@@ -96,7 +99,8 @@ static njt_health_check_checker_t http_checker = {
 };
 
 
-static njt_int_t   njt_health_check_http_module_postconfiguration(njt_conf_t *cf){
+static njt_int_t njt_health_check_http_module_init_process(njt_cycle_t *cycle){
+// static njt_int_t   njt_health_check_http_module_postconfiguration(njt_conf_t *cf){
     njt_health_check_reg_info_t             h;
 
     njt_str_t  server_type = njt_string("http");
@@ -240,7 +244,7 @@ static void *njt_health_check_http_module_create_ctx(void *hhccf_info, void *api
         //do nothing for other param
     }else if(api_data->hc_data->http->uri.len > 0){
         njt_str_copy_pool(hhccf->pool, http_ctx->uri, api_data->hc_data->http->uri, return NULL);
-        rc = njt_health_check_http_match_block(api_data, hhccf);
+        rc = njt_health_check_http_match_block(api_data, hhccf, http_ctx);
         if (rc != HC_SUCCESS) {
             return NULL;
         }
@@ -423,19 +427,18 @@ njt_health_check_http_match_parse_dheaders(njt_array_t *arr, njt_health_check_ht
 }
 
 
-static njt_int_t njt_health_check_http_match(njt_health_check_api_data_t *api_data, njt_health_check_conf_t *hhccf) {
-    njt_str_t                       *args;
-    njt_health_check_http_match_code_t           *code, tmp_code;
-    njt_uint_t                      i;
-    njt_int_t                       rc;
-    njt_health_check_http_match_t                *match;
-    njt_conf_t                      cf;
-    njt_array_t                     *array;
+static njt_int_t njt_health_check_http_match(njt_health_check_api_data_t *api_data,
+        njt_health_check_conf_t *hhccf, njt_health_check_http_module_conf_ctx_t *http_ctx) {
+    njt_str_t                                   *args;
+    njt_health_check_http_match_code_t          *code, tmp_code;
+    njt_uint_t                                  i;
+    njt_int_t                                   rc;
+    njt_health_check_http_match_t               *match;
+    njt_conf_t                                  cf;
+    njt_array_t                                 *array;
     health_check_http_header_item_t *header_item;
 
-    njt_health_check_http_module_conf_ctx_t *http_ctx = hhccf->ctx;
     match = http_ctx->match;
-
     match->conditions = 1;
     if(api_data->hc_data == NULL || !api_data->hc_data->is_http_set || api_data->hc_data->http == NULL){
         return NJT_OK;
@@ -786,7 +789,8 @@ static njt_health_check_http_match_t *njt_health_check_http_match_create(njt_hea
 
 
 
-static njt_int_t njt_health_check_http_match_block(njt_health_check_api_data_t *api_data, njt_health_check_conf_t *hhccf) {
+static njt_int_t njt_health_check_http_match_block(njt_health_check_api_data_t *api_data,
+        njt_health_check_conf_t *hhccf, njt_health_check_http_module_conf_ctx_t *http_ctx) {
     njt_health_check_http_match_t        *match;
     njt_int_t               rc;
     njt_uint_t              i;
@@ -794,7 +798,6 @@ static njt_int_t njt_health_check_http_match_block(njt_health_check_api_data_t *
     health_check_http_header_item_t *header_item;
     njt_str_t               tmp_str;
 
-    njt_health_check_http_module_conf_ctx_t *http_ctx = hhccf->ctx;
     if(api_data->hc_data == NULL || !api_data->hc_data->is_http_set){
         return HC_SUCCESS;
     }
@@ -836,7 +839,7 @@ static njt_int_t njt_health_check_http_match_block(njt_health_check_api_data_t *
         njt_log_error(NJT_LOG_EMERG, hhccf->log, 0, "match header array init error");
         return HC_SERVER_ERROR;
     }
-    rc = njt_health_check_http_match(api_data, hhccf);
+    rc = njt_health_check_http_match(api_data, hhccf, http_ctx);
     if (rc == NJT_OK) {
         return HC_SUCCESS;
     } else {

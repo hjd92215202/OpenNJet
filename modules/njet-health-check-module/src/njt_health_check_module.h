@@ -2,7 +2,7 @@
 #ifndef __NJT_HEALTH_CHECK_MODULE_H__
 #define __NJT_HEALTH_CHECK_MODULE_H__
 
-#include "njt_health_check_parser.h"
+#include <njt_health_check_parser.h>
 
 
 typedef struct {

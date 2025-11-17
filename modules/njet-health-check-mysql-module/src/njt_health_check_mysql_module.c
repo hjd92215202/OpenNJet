@@ -26,19 +26,20 @@
 
 static void *njt_health_check_mysql_module_create_ctx(void *hhccf_info, void *api_data_info);
 static void njt_health_check_mysql_module_start_check(void *hc_peer_info, interal_update_handler udpate_handler);
-static njt_int_t   njt_health_check_mysql_module_postconfiguration(njt_conf_t *cf);
+static njt_int_t njt_health_check_mysql_module_init_process(njt_cycle_t *cycle);
 static void njt_health_check_mysql_module_start(njt_health_check_peer_t *hc_peer);
 static void njt_health_check_mysql_module_status_handler(njt_health_check_peer_t *init_hc_peer,
         njt_int_t event, njt_event_t *ev);
 static njt_int_t 
-njt_health_check_mysql_module_context_set(njt_health_check_api_data_t *api_data, njt_health_check_conf_t *hhccf);
+njt_health_check_mysql_module_context_set(njt_health_check_api_data_t *api_data, njt_health_check_conf_t *hhccf,
+        njt_health_check_mysql_module_conf_ctx_t  *mysql_ctx);
 static void njt_health_check_mysql_module_close_connection(njt_connection_t *c);
 
 extern njt_cycle_t *njet_master_cycle;
 
 static njt_http_module_t njt_health_check_mysql_module_ctx = {
         NULL,                                   /* preconfiguration */
-        njt_health_check_mysql_module_postconfiguration,          /* postconfiguration */
+        NULL,          /* postconfiguration */
 
         NULL,                                   /* create main configuration */
         NULL,                                  /* init main configuration */
@@ -57,7 +58,7 @@ njt_module_t njt_health_check_mysql_module = {
         NJT_HTTP_MODULE,                        /* module type */
         NULL,                                   /* init master */
         NULL,                                   /* init module */
-        NULL,                                   /* init process */
+        njt_health_check_mysql_module_init_process,                                   /* init process */
         NULL,                                   /* init thread */
         NULL,                                   /* exit thread */
         NULL,                                   /* exit process */
@@ -66,7 +67,7 @@ njt_module_t njt_health_check_mysql_module = {
 };
 
 
-static njt_int_t   njt_health_check_mysql_module_postconfiguration(njt_conf_t *cf){
+static njt_int_t njt_health_check_mysql_module_init_process(njt_cycle_t *cycle){
     njt_health_check_reg_info_t             h;
 
     njt_str_t  server_type = njt_string("mysql");
@@ -123,7 +124,7 @@ static void *njt_health_check_mysql_module_create_ctx(void *hhccf_info, void *ap
         return NULL;
     }
 
-    rc = njt_health_check_mysql_module_context_set(api_data, hhccf);
+    rc = njt_health_check_mysql_module_context_set(api_data, hhccf, mysql_ctx);
     if (rc != HC_SUCCESS) {
         return NULL;
     }
@@ -145,12 +146,9 @@ static void njt_health_check_mysql_module_free_peer_resource(njt_health_check_pe
 }
 
 static njt_int_t 
-njt_health_check_mysql_module_context_set(njt_health_check_api_data_t *api_data, njt_health_check_conf_t *hhccf) {
-    njt_health_check_mysql_module_conf_ctx_t  *mysql_ctx = NULL; 
+njt_health_check_mysql_module_context_set(njt_health_check_api_data_t *api_data, njt_health_check_conf_t *hhccf,
+        njt_health_check_mysql_module_conf_ctx_t  *mysql_ctx) {
     njt_str_t                           *val = NULL;
-
-    /* mysql health check context */
-    mysql_ctx = hhccf->ctx;
 
     if (api_data->hc_data->is_sql_set) {
         if(api_data->hc_data->sql->is_select_set && api_data->hc_data->sql->select.len > 0){
