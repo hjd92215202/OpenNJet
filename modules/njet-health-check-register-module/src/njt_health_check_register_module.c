@@ -126,7 +126,7 @@ njt_health_check_register_init_worker(njt_cycle_t *cycle) {
 }
 
 
-njt_int_t njt_health_check_register_reg_handler(njt_health_check_reg_info_t *reg_info){
+njt_int_t njt_health_check_reg_handler(njt_health_check_reg_info_t *reg_info){
     njt_health_check_reg_info_t         *saved_reg_info;
     njt_lvlhsh_query_t                  lhq;
     njt_uint_t                          rc;
@@ -184,7 +184,6 @@ njt_int_t njt_health_check_register_reg_handler(njt_health_check_reg_info_t *reg
     }
 
     *saved_reg_info = *reg_info;
-
     lhq.value = saved_reg_info;
     rc = njt_lvlhsh_insert(&njt_health_check_register_modules, &lhq);
     if(rc != NJT_OK){

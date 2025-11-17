@@ -5,10 +5,16 @@ njt_module_name=$njt_addon_name
 njt_module_deps=" \
     $njt_addon_dir/src/njt_health_check_register_module.h \
     $njt_addon_dir/src/njt_health_check_common.h \
+    $njt_addon_dir/src/njt_health_check_parser.h \
+    $njt_addon_dir/src/njt_health_check_ctrl_parser.h \
+    $njt_addon_dir/src/njt_health_check_util.h \
 "
 
 njt_module_srcs=" \
     $njt_addon_dir/src/njt_health_check_register_module.c \
+    $njt_addon_dir/src/njt_health_check_parser.c \
+    $njt_addon_dir/src/njt_health_check_ctrl_parser.c \
+    $njt_addon_dir/src/njt_health_check_util.c \
 "
 
 njt_module_incs="$njt_addon_dir/src"
