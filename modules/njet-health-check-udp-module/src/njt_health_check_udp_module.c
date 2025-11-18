@@ -124,7 +124,7 @@ static void njt_health_check_udp_module_start_check(void *hc_peer_info, interal_
 
     njt_log_error(NJT_LOG_DEBUG, njt_cycle->log, 0,
                     "health check connect to peer of %V.", &peer->name);
-
+    peer->type = SOCK_DGRAM;
     rc = njt_event_connect_peer(peer);
     if (rc == NJT_ERROR || rc == NJT_DECLINED || rc == NJT_BUSY) {
         njt_log_error(NJT_LOG_WARN, njt_cycle->log, 0,
