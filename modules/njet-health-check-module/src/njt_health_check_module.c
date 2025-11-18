@@ -749,7 +749,11 @@ njt_health_check_stream_timer_handler(njt_event_t *ev) {
     }
 
     njt_log_error(NJT_LOG_DEBUG, njt_cycle->log, 0, "Stream health check timer is triggered.");
-    
+
+    if (hhccf->mandatory == 1 && hhccf->persistent == 0 && hhccf->curr_delay != 0) {
+        hhccf->curr_frame += 1000;
+    }
+
     op = 0;
     if (hhccf->curr_delay != 0 
             && hhccf->curr_delay <= hhccf->curr_frame) {
@@ -786,12 +790,16 @@ njt_health_check_stream_timer_handler(njt_event_t *ev) {
         njt_log_error(NJT_LOG_DEBUG, njt_cycle->log, 0,
                        "delay %u for the health check timer.", jitter);
     }
-    njt_add_timer(&hhccf->hc_timer, hhccf->interval + jitter);
+
+    if(hhccf->mandatory == 1 && hhccf->persistent == 0) {
+        hhccf->curr_delay = hhccf->interval + jitter;
+        njt_add_timer(&hhccf->hc_timer, 1000);
+    } else {
+        njt_add_timer(&hhccf->hc_timer, hhccf->interval + jitter);
+    }
 
     return;    
 }
-
-
 
 
 static void njt_health_check_update_http_peer(njt_http_upstream_srv_conf_t *uscf,
