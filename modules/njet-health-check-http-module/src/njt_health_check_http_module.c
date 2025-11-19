@@ -51,12 +51,12 @@ static void njt_health_check_close_http_connection(njt_connection_t *c);
 static njt_int_t njt_health_check_http_module_http_write_handler(njt_event_t *wev);
 static njt_int_t njt_health_check_http_module_http_read_handler(njt_event_t *rev);
 static njt_int_t njt_health_check_http_module_http_process(njt_health_check_peer_t *hc_peer);
-
+static njt_int_t njt_health_check_http_module_test_connect(njt_connection_t *c);
 static void njt_health_check_http_module_write_handler(njt_event_t *wev);
 static void njt_health_check_http_module_read_handler(njt_event_t *rev);
 static njt_int_t njt_health_check_http_process_headers(njt_health_check_peer_t *hc_peer);
 static njt_int_t njt_health_check_http_process_body(njt_health_check_peer_t *hc_peer);
-
+static void njt_health_check_http_module_connect_handler(njt_event_t *ev);
 
 extern njt_cycle_t *njet_master_cycle;
 extern health_check_http_header_item_t* get_health_check_http_header_item(health_check_http_header_t *out, size_t idx);
@@ -186,7 +186,6 @@ static void njt_health_check_http_module_start_check(void *hc_peer_info, interal
 
 
 #if (NJT_HTTP_SSL)
-
     if (hhccf->ssl.ssl_enable && hhccf->ssl.ssl->ctx &&
         c->ssl == NULL) {
         rc = njt_health_check_http_ssl_init_connection(c, hc_peer);
@@ -198,14 +197,13 @@ static void njt_health_check_http_module_start_check(void *hc_peer_info, interal
         }
         return;
     }
-
 #endif
 
     njt_log_error(NJT_LOG_DEBUG, c->log, 0,
         "http peer check, peerid:%d ref_count=%d", hc_peer->peer_id, hhccf->ref_count);
 
-    c->write->handler = njt_health_check_http_module_write_handler;
-    c->read->handler = njt_health_check_http_module_read_handler;
+    c->write->handler = njt_health_check_http_module_connect_handler;
+    c->read->handler = njt_health_check_http_module_connect_handler;
 
     if(rc == NJT_AGAIN){
         if (hhccf->timeout){
@@ -214,10 +212,76 @@ static void njt_health_check_http_module_start_check(void *hc_peer_info, interal
     }
 
     if(rc == NJT_OK){
+#if (NJT_HTTP_SSL)
+        if (hhccf->ssl.ssl_enable && hhccf->ssl.ssl->ctx &&
+            c->ssl == NULL) {
+            rc = njt_health_check_http_ssl_init_connection(c, hc_peer);
+            if (rc == NJT_ERROR) {
+                if (hc_peer->peer.connection) {
+                    njt_health_check_close_http_connection(hc_peer->peer.connection);
+                }
+                update_handler(hc_peer, NJT_ERROR);
+            }
+            return;
+        }
+#endif
+
+        c->write->handler = njt_health_check_http_module_write_handler;
+        c->read->handler = njt_health_check_http_module_read_handler;
+
         njt_health_check_http_module_write_handler(c->write);
     }
 
     return;
+}
+
+
+static void njt_health_check_http_module_connect_handler(njt_event_t *ev)
+{
+    njt_connection_t                    *c;
+    njt_health_check_peer_t             *hc_peer;
+    njt_int_t                           rc;
+    njt_health_check_conf_t             *hhccf;
+
+    c = ev->data;
+    hc_peer = c->data;
+    hhccf = hc_peer->hhccf;
+
+    if (ev->timedout) {
+        njt_health_check_http_module_free_peer_resource(hc_peer, NJT_ERROR);
+        return;
+    }
+    if (hc_peer->hhccf->disable) {
+        if (hc_peer->peer.connection) {
+            njt_health_check_close_http_connection(hc_peer->peer.connection);
+        }
+        return;
+    }
+
+    if (ev->timer_set) {
+        njt_del_timer(ev);
+    }
+
+    if (njt_health_check_http_module_test_connect(c) != NJT_OK) {
+        njt_health_check_http_module_free_peer_resource(hc_peer, NJT_ERROR);
+        return;
+    }
+
+#if (NJT_HTTP_SSL)
+    if (hhccf->ssl.ssl_enable && hhccf->ssl.ssl->ctx &&
+        c->ssl == NULL) {
+        rc = njt_health_check_http_ssl_init_connection(c, hc_peer);
+        if (rc == NJT_ERROR) {
+            njt_health_check_http_module_free_peer_resource(hc_peer, NJT_ERROR);
+        }
+        return;
+    }
+#endif
+
+    c->write->handler = njt_health_check_http_module_write_handler;
+    c->read->handler = njt_health_check_http_module_read_handler;
+
+    njt_health_check_http_module_write_handler(c->write);
 }
 
 
@@ -735,10 +799,6 @@ njt_health_check_http_ssl_init_connection(njt_connection_t *c, njt_health_check_
     njt_health_check_conf_t *hhccf;
 
     hhccf = hc_peer->hhccf;
-
-    if (njt_health_check_http_module_test_connect(c) != NJT_OK) {
-        return NJT_ERROR;
-    }
 
     if (njt_ssl_create_connection(hhccf->ssl.ssl, c,
             NJT_SSL_BUFFER | NJT_SSL_CLIENT) != NJT_OK) {

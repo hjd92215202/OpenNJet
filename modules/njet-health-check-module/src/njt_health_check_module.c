@@ -1501,10 +1501,10 @@ njt_health_check_loop_http_upstream_peer(njt_health_check_conf_t *hhccf, njt_htt
 void njt_health_check_loop_stream_upstream_peer(njt_health_check_conf_t *hhccf, njt_stream_upstream_rr_peers_t *peers,
                                 njt_flag_t backup, njt_flag_t op, bool map_recreate) {
     njt_int_t                       rc;
-    njt_health_check_peer_t *hc_peer;
-    njt_stream_upstream_rr_peer_t  *peer;
-    njt_stream_upstream_rr_peers_t *hu_peers;
-    njt_pool_t                     *pool;
+    njt_health_check_peer_t         *hc_peer;
+    njt_stream_upstream_rr_peer_t   *peer;
+    njt_stream_upstream_rr_peers_t  *hu_peers;
+    njt_pool_t                      *pool;
     njt_msec_t                      now_time;
 
     hu_peers = peers;
@@ -1522,6 +1522,7 @@ void njt_health_check_loop_stream_upstream_peer(njt_health_check_conf_t *hhccf, 
         {
             continue;
         }
+
         if ((peer->hc_down == 2) || (op == 1)) {  
             if (peer->hc_check_in_process) {
                 njt_log_error(NJT_LOG_DEBUG, njt_cycle->log, 0,
@@ -1644,6 +1645,7 @@ void njt_health_check_loop_stream_upstream_peer(njt_health_check_conf_t *hhccf, 
             hc_peer->update_handler = njt_health_check_stream_common_update;
 
             //cal reg start check
+            hhccf->ref_count++;
             hhccf->reg->start_check(hc_peer, njt_health_check_stream_common_update_bylock);
         }
     }

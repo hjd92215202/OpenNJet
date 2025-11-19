@@ -24,7 +24,6 @@ static void njt_health_check_udp_module_start_check(void *hc_peer_info, interal_
 static void *njt_health_check_udp_module_create_ctx(void *hhccf_info, void *api_data_info);
 static void njt_health_check_udp_dummy_handler(njt_event_t *ev);
 static njt_int_t njt_health_check_udp_module_init_process(njt_cycle_t *cycle);
-static njt_int_t njt_health_check_udp_module_test_connect(njt_connection_t *c);
 static void njt_health_check_close_udp_connection(njt_connection_t *c);
 static void njt_health_check_udp_module_free_peer_resource(njt_health_check_peer_t *hc_peer, njt_int_t status);
 
@@ -35,8 +34,6 @@ static void njt_health_check_udp_module_read_handler(njt_event_t *rev);
 static njt_int_t 
 njt_health_check_udp_match_block(njt_health_check_api_data_t *api_data, njt_health_check_conf_t *hhccf,
         njt_health_check_udp_module_conf_ctx_t *udp_ctx);
-static njt_int_t
-njt_health_check_udp_ssl_init_connection(njt_connection_t *c, njt_health_check_peer_t *hc_peer);
 
 extern njt_cycle_t *njet_master_cycle;
 
@@ -123,12 +120,12 @@ static void njt_health_check_udp_module_start_check(void *hc_peer_info, interal_
     njt_int_t                       rc;
 
     njt_log_error(NJT_LOG_DEBUG, njt_cycle->log, 0,
-                    "health check connect to peer of %V.", &peer->name);
+                    "health check connect to peer of %V.", peer->name);
     peer->type = SOCK_DGRAM;
     rc = njt_event_connect_peer(peer);
     if (rc == NJT_ERROR || rc == NJT_DECLINED || rc == NJT_BUSY) {
         njt_log_error(NJT_LOG_WARN, njt_cycle->log, 0,
-                        "health check connect to peer of %V errror.", &peer->name);
+                        "health check connect to peer of %V errror.", peer->name);
 
         udpate_handler(hc_peer, NJT_ERROR);
 
@@ -139,19 +136,6 @@ static void njt_health_check_udp_module_start_check(void *hc_peer_info, interal_
     c->data = hc_peer;
     c->pool = hc_peer->pool;
     c->log->connection = c->number;
-
-#if (NJT_HTTP_SSL)
-
-    if (hhccf->ssl.ssl_enable && hhccf->ssl.ssl->ctx &&
-        c->ssl == NULL) {
-        rc = njt_health_check_udp_ssl_init_connection(c, hc_peer);
-        if (rc == NJT_ERROR) {
-            udpate_handler(hc_peer, NJT_ERROR);
-        }
-        return;
-    }
-
-#endif
 
     njt_log_error(NJT_LOG_DEBUG, c->log, 0,
         "http peer check, peerid:%d ref_count=%d", hc_peer->peer_id, hhccf->ref_count);
@@ -199,256 +183,6 @@ static void *njt_health_check_udp_module_create_ctx(void *hhccf_info, void *api_
 
     return udp_ctx;
 }
-
-
-#if (NJT_STREAM_SSL)
-
-static njt_int_t
-njt_health_check_udp_ssl_name(njt_connection_t *c, njt_health_check_peer_t *hc_peer) {
-    u_char                              *p, *last;
-    njt_str_t                           name;
-    njt_health_check_conf_t      *hhccf;
-    njt_stream_upstream_srv_conf_t      *uscf;
-
-    hhccf = hc_peer->hhccf;
-
-    if (hhccf->ssl.ssl_name.len) {
-        name = hhccf->ssl.ssl_name;
-    } else {
-        uscf = njt_health_check_find_stream_upstream_by_name(njet_master_cycle, &hhccf->upstream_name);
-        if (uscf == NULL) {
-            njt_log_error(NJT_LOG_ERR, c->log, 0,
-                              "stream hc ssl name uscf has not exit");
-            return NJT_ERROR;
-        }
-        name = uscf->host;
-    }
-    if (name.len == 0) {
-        goto done;
-    }
-
-    /*
-     * ssl name here may contain port, notably if derived from $proxy_host
-     * or $http_host; we have to strip it
-     */
-
-    p = name.data;
-    last = name.data + name.len;
-
-    if (*p == '[') {
-        p = njt_strlchr(p, last, ']');
-
-        if (p == NULL) {
-            p = name.data;
-        }
-    }
-
-    p = njt_strlchr(p, last, ':');
-
-    if (p != NULL) {
-        name.len = p - name.data;
-    }
-
-    if (!hhccf->ssl.ssl_server_name) {
-        goto done;
-    }
-
-#ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
-
-    /* as per RFC 6066, literal IPv4 and IPv6 addresses are not permitted */
-
-    if (name.len == 0 || *name.data == '[') {
-        goto done;
-    }
-
-    if (njt_inet_addr(name.data, name.len) != INADDR_NONE) {
-        goto done;
-    }
-
-    /*
-     * SSL_set_tlsext_host_name() needs a null-terminated string,
-     * hence we explicitly null-terminate name here
-     */
-
-    p = njt_pnalloc(c->pool, name.len + 1);
-    if (p == NULL) {
-        return NJT_ERROR;
-    }
-
-    (void) njt_cpystrn(p, name.data, name.len + 1);
-
-    name.data = p;
-
-    njt_log_error(NJT_LOG_DEBUG, c->log, 0, "upstream SSL server name: \"%s\"", name.data);
-
-    if (SSL_set_tlsext_host_name(c->ssl->connection,
-                                 (char *) name.data)
-        == 0) {
-        njt_ssl_error(NJT_LOG_ERR, c->log, 0,
-                      "SSL_set_tlsext_host_name(\"%s\") failed", name.data);
-        return NJT_ERROR;
-    }
-
-#endif
-
-    done:
-
-    hc_peer->ssl_name = name;
-
-    return NJT_OK;
-}
-static njt_int_t
-njt_health_check_udp_ssl_handshake(njt_connection_t *c, njt_health_check_peer_t *hc_peer) {
-    long rc;
-    njt_health_check_conf_t *hhccf;
-
-    hhccf = hc_peer->hhccf;
-
-    if (c->ssl->handshaked) {
-
-        if (hhccf->ssl.ssl_verify) {
-            rc = SSL_get_verify_result(c->ssl->connection);
-            if (rc != X509_V_OK) {
-                njt_log_error(NJT_LOG_ERR, c->log, 0,
-                              "upstream SSL certificate verify error: (%l:%s)",
-                              rc, X509_verify_cert_error_string(rc));
-                goto failed;
-            }
-
-            if (njt_ssl_check_host(c, &hc_peer->ssl_name) != NJT_OK) {
-                njt_log_error(NJT_LOG_ERR, c->log, 0,
-                              "hc SSL certificate does not match \"%V\"",
-                              &hc_peer->ssl_name);
-                goto failed;
-            }
-        }
-        // hhccf->ref_count++;
-        njt_log_error(NJT_LOG_DEBUG, c->log, 0,
-            "====stream peer check ssl, peerid:%d ref_count=%d", hc_peer->peer_id, hhccf->ref_count);
-        hc_peer->peer.connection->write->handler = njt_health_check_udp_module_write_handler;
-        hc_peer->peer.connection->read->handler = njt_health_check_udp_module_read_handler;
-
-        /*NJT_AGAIN or NJT_OK*/
-        if (hhccf->timeout) {
-            njt_add_timer(hc_peer->peer.connection->write, hhccf->timeout);
-            njt_add_timer(hc_peer->peer.connection->read, hhccf->timeout);
-        }
-        return NJT_OK;
-    }
-
-    if (c->write->timedout) {
-        return NJT_ERROR;
-    }
-
-failed:
-    return NJT_ERROR;
-}
-
-
-static void
-njt_health_check_udp_ssl_handshake_handler(njt_connection_t *c) {
-    njt_health_check_peer_t *hc_peer;
-    njt_int_t rc;
-
-    hc_peer = c->data;
-
-    rc = njt_health_check_udp_ssl_handshake(c, hc_peer);
-    if (rc != NJT_OK) {
-        njt_health_check_udp_module_free_peer_resource(hc_peer, NJT_ERROR);
-    }
-}
-
-
-static njt_int_t njt_health_check_udp_module_test_connect(njt_connection_t *c) {
-    int err;
-    socklen_t len;
-
-#if (NJT_HAVE_KQUEUE)
-    if (njt_event_flags & NJT_USE_KQUEUE_EVENT)  {
-        if (c->write->pending_eof || c->read->pending_eof) {
-            if (c->write->pending_eof) {
-                err = c->write->kq_errno;
-
-            } else {
-                err = c->read->kq_errno;
-            }
-
-            c->log->action = "connecting to upstream";
-            (void) njt_connection_error(c, err,
-                                    "kevent() reported that connect() failed");
-            return NJT_ERROR;
-        }
-
-    } else
-#endif
-    {
-        err = 0;
-        len = sizeof(int);
-
-        /*
-         * BSDs and Linux return 0 and set a pending error in err
-         * Solaris returns -1 and sets errno
-         */
-
-        if (getsockopt(c->fd, SOL_SOCKET, SO_ERROR, (void *) &err, &len)
-            == -1) {
-            err = njt_socket_errno;
-        }
-
-        if (err) {
-            c->log->action = "connecting to hc";
-            (void) njt_connection_error(c, err, "connect() failed");
-            return NJT_ERROR;
-        }
-    }
-
-    return NJT_OK;
-}
-
-
-static njt_int_t
-njt_health_check_udp_ssl_init_connection(njt_connection_t *c, njt_health_check_peer_t *hc_peer) {
-    njt_int_t rc;
-    njt_health_check_conf_t *hhccf;
-
-    hhccf = hc_peer->hhccf;
-
-    if (njt_health_check_udp_module_test_connect(c) != NJT_OK) {
-        return NJT_ERROR;
-    }
-
-    if (njt_ssl_create_connection(hhccf->ssl.ssl, c,
-                                  NJT_SSL_BUFFER | NJT_SSL_CLIENT) != NJT_OK) {
-        njt_log_error(NJT_LOG_DEBUG, c->log, 0, "ssl init create connection for health check error ");
-        return NJT_ERROR;
-    }
-
-    c->sendfile = 0;
-
-    if (hhccf->ssl.ssl_server_name || hhccf->ssl.ssl_verify) {
-        if (njt_health_check_udp_ssl_name(c, hc_peer) != NJT_OK) {
-            njt_log_error(NJT_LOG_DEBUG, c->log, 0, "ssl init check ssl name for health check error ");
-            return NJT_ERROR;
-        }
-    }
-
-    c->log->action = "SSL handshaking to hc";
-
-    rc = njt_ssl_handshake(c);
-
-    if (rc == NJT_AGAIN) {
-
-        if (!c->write->timer_set) {
-            njt_add_timer(c->write, hhccf->timeout);
-        }
-
-        c->ssl->handler = njt_health_check_udp_ssl_handshake_handler;
-        return NJT_OK;
-    }
-
-    return njt_health_check_udp_ssl_handshake(c, hc_peer);
-}
-#endif
 
 
 /*
@@ -653,16 +387,6 @@ static void njt_health_check_udp_module_free_peer_resource(njt_health_check_peer
 }
 
 static void njt_health_check_close_udp_connection(njt_connection_t *c) {
-
-#if (NJT_STREAM_SSL)
-    if (c->ssl) {
-        c->ssl->no_wait_shutdown = 1;
-        c->ssl->no_send_shutdown = 1;
-
-        (void) njt_ssl_shutdown(c);
-    }
-#endif
-
     c->destroyed = 1;
     njt_close_connection(c);
 
