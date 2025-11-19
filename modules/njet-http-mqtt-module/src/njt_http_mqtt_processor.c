@@ -593,15 +593,13 @@ njt_http_mqtt_upstream_publish(njt_http_request_t *r, njt_connection_t *mqttxc,
             
             njt_http_mqtt_upstream_finalize_request(r, r->upstream, rc);
 
-            njt_log_error(NJT_LOG_ERR, r->connection->log, 0,"mqtt publish msg error");
+            njt_log_error(NJT_LOG_ERR, njt_cycle->log, 0,"mqtt publish msg error");
             return NJT_ERROR;
         }
     }
 
     // /* set result timeout */
     njt_add_timer(mqttxc->read, r->upstream->conf->read_timeout);
-
-    // njt_log_error(NJT_LOG_INFO, r->connection->log, 0,"mqtt publish successfully");
 
     mqttxc->log->action = "waiting for result from mqtt broker";
     mqttdt->state = state_mqtt_get_result;
@@ -687,6 +685,5 @@ njt_http_mqtt_upstream_done(njt_http_request_t *r, njt_http_upstream_t *u,
         njt_http_mqtt_upstream_finalize_request(r, u, NJT_OK);
     }
 
-    njt_log_error(NJT_LOG_DEBUG, r->connection->log, 0,"returning NJT_DONE njt_http_mqtt_upstream_done");
     return NJT_DONE;
 }
