@@ -127,7 +127,7 @@ static njt_int_t njt_health_check_api_add_conf(njt_log_t *pool, njt_health_check
 
 static njt_health_check_conf_t *njt_health_check_find_hc(njt_cycle_t *cycle, njt_health_check_api_data_t *api_data);
 
-static njt_health_check_conf_t *njt_health_check_find_hc_by_name_and_type(njt_cycle_t *cycle, njt_str_t * hc_type,njt_str_t *upstream_name);
+// static njt_health_check_conf_t *njt_health_check_find_hc_by_name_and_type(njt_cycle_t *cycle, njt_str_t * hc_type,njt_str_t *upstream_name);
 
 static njt_int_t njt_health_check_http_peer_add_map(njt_health_check_conf_t *hhccf, 
                 njt_http_upstream_rr_peer_t *peer);
@@ -2231,29 +2231,27 @@ static njt_int_t njt_health_check_api_get_hcs(njt_http_request_t *r) {
 }
 
 
+// static njt_health_check_conf_t *njt_health_check_find_hc_by_name_and_type(njt_cycle_t *cycle,
+//         njt_str_t *hc_type, njt_str_t *upstream_name){
+//     njt_health_check_main_conf_t    *hmcf;
+//     njt_health_check_conf_t         *hhccf;
+//     njt_queue_t                     *q;
 
+//     hmcf = (njt_health_check_main_conf_t *) njt_get_conf(cycle->conf_ctx, njt_helper_health_check_module);
 
-static njt_health_check_conf_t *njt_health_check_find_hc_by_name_and_type(njt_cycle_t *cycle,
-        njt_str_t *hc_type, njt_str_t *upstream_name){
-    njt_health_check_main_conf_t    *hmcf;
-    njt_health_check_conf_t         *hhccf;
-    njt_queue_t                     *q;
+//     q = njt_queue_head(&hmcf->hc_queue);
+//     for (; q != njt_queue_sentinel(&hmcf->hc_queue); q = njt_queue_next(q)) {
+//         hhccf = njt_queue_data(q, njt_health_check_conf_t, queue);
+//         if (hhccf->server_type.len == hc_type->len
+//             && njt_strncmp(hhccf->server_type.data, hc_type->data, hhccf->server_type.len) == 0
+//             && hhccf->upstream_name.len == upstream_name->len
+//             && njt_strncmp(hhccf->upstream_name.data, upstream_name->data, hhccf->upstream_name.len) == 0) {
+//             return hhccf;
+//         }
+//     }
 
-    hmcf = (njt_health_check_main_conf_t *) njt_get_conf(cycle->conf_ctx, njt_helper_health_check_module);
-
-    q = njt_queue_head(&hmcf->hc_queue);
-    for (; q != njt_queue_sentinel(&hmcf->hc_queue); q = njt_queue_next(q)) {
-        hhccf = njt_queue_data(q, njt_health_check_conf_t, queue);
-        if (hhccf->server_type.len == hc_type->len
-            && njt_strncmp(hhccf->server_type.data, hc_type->data, hhccf->server_type.len) == 0
-            && hhccf->upstream_name.len == upstream_name->len
-            && njt_strncmp(hhccf->upstream_name.data, upstream_name->data, hhccf->upstream_name.len) == 0) {
-            return hhccf;
-        }
-    }
-
-    return NULL;
-}
+//     return NULL;
+// }
 
 
 static njt_health_check_conf_t *njt_health_check_find_stream_hc_by_upstream(njt_cycle_t *cycle,
@@ -2277,9 +2275,55 @@ static njt_health_check_conf_t *njt_health_check_find_stream_hc_by_upstream(njt_
     return NULL;
 }
 
+static njt_health_check_conf_t *njt_health_check_find_http_hc_by_upstream(njt_cycle_t *cycle,
+        njt_str_t *upstream_name){
+    njt_health_check_main_conf_t *hmcf;
+    njt_health_check_conf_t *hhccf;
+    njt_queue_t *q;
+
+    hmcf = (njt_health_check_main_conf_t *) njt_get_conf(cycle->conf_ctx, njt_helper_health_check_module);
+
+    q = njt_queue_head(&hmcf->hc_queue);
+    for (; q != njt_queue_sentinel(&hmcf->hc_queue); q = njt_queue_next(q)) {
+        hhccf = njt_queue_data(q, njt_health_check_conf_t, queue);
+        if (hhccf->module_type == NJT_HTTP_MODULE
+            && hhccf->upstream_name.len == upstream_name->len
+            && njt_strncmp(hhccf->upstream_name.data, upstream_name->data, hhccf->upstream_name.len) == 0) {
+            return hhccf;
+        }
+    }
+
+    return NULL;
+}
+
+
 
 static njt_health_check_conf_t *njt_health_check_find_hc(njt_cycle_t *cycle, njt_health_check_api_data_t *api_data){
-    return njt_health_check_find_hc_by_name_and_type(cycle, &api_data->hc_type, &api_data->upstream_name);
+    njt_uint_t                  module_type;
+    njt_health_check_conf_t     *hhccf;
+    
+    
+    // hhccf = njt_health_check_find_hc_by_name_and_type(cycle, &api_data->hc_type, &api_data->upstream_name);
+    // if(hhccf != NULL){
+    //     return hhccf;
+    // }
+
+    module_type = njt_health_check_get_module_type(&api_data->hc_type);
+    if(module_type == NJT_STREAM_MODULE){
+        hhccf = njt_health_check_find_stream_hc_by_upstream(cycle, &api_data->upstream_name);
+        if(hhccf != NULL){
+            return hhccf;
+        }
+    }
+
+    if(module_type == NJT_HTTP_MODULE){
+        hhccf = njt_health_check_find_http_hc_by_upstream(cycle, &api_data->upstream_name);
+        if(hhccf != NULL){
+            return hhccf;
+        }
+    }
+
+    return NULL;
 }
 
 
@@ -2628,7 +2672,7 @@ static njt_int_t njt_traver_http_upstream_item_handle(void *ctx,njt_http_upstrea
                          "}}");
         upstream_name.data = uscfp->host.data;
         upstream_name.len = uscfp->host.len;
-        hhccf = njt_health_check_find_hc_by_name_and_type(cycle, &hc_type, &upstream_name);
+        hhccf = njt_health_check_find_http_hc_by_upstream(cycle, &upstream_name);
         if(NULL != hhccf) {
             njt_log_error(NJT_LOG_INFO, njt_cycle->log, 0, "http upstream %V has added by kv",&uscfp->host);
             return 0;
@@ -2666,7 +2710,7 @@ static njt_int_t njt_traver_stream_upstream_item_handle(void *ctx,njt_stream_ups
                          "}");
         upstream_name.data = uscfp->host.data;
         upstream_name.len = uscfp->host.len;
-        hhccf = njt_health_check_find_hc_by_name_and_type(cycle, &hc_type, &upstream_name);
+        hhccf = njt_health_check_find_stream_hc_by_upstream(cycle, &upstream_name);
         if(NULL != hhccf) {
             njt_log_error(NJT_LOG_INFO, njt_cycle->log, 0, "http upstream %V has added by kv.",&uscfp->host);
             return 0;
@@ -2680,14 +2724,14 @@ static njt_int_t njt_traver_stream_upstream_item_handle(void *ctx,njt_stream_ups
 #if (NJT_HTTP_ADD_DYNAMIC_UPSTREAM)
 static void njt_health_check_dyn_http_upstream_add(void *data) {
     njt_http_upstream_srv_conf_t            *upstream = data;
-    njt_health_check_conf_t          *hhccf;
+    njt_health_check_conf_t                 *hhccf;
     njt_cycle_t                             *cycle = (njt_cycle_t *) njt_cycle;
     njt_pool_t                              *pool; 
-    njt_str_t                                hc_type = njt_string("http");
+
 
     if(upstream) {
         //check wether exist
-        hhccf = njt_health_check_find_hc_by_name_and_type(cycle, &hc_type, &upstream->host);
+        hhccf = njt_health_check_find_http_hc_by_upstream(cycle, &upstream->host);
         if(hhccf != NULL){
             njt_log_error(NJT_LOG_ERR, njt_cycle->log, 0,
                 "http upstream:%V hc has already exist, just recover checking", &upstream->host);
@@ -2722,14 +2766,13 @@ static void njt_health_check_dyn_http_upstream_add(void *data) {
 
 static void njt_health_check_dyn_http_upstream_del(void *data) {
     njt_http_upstream_srv_conf_t            *upstream = data;
-    njt_health_check_conf_t          *hhccf;
+    njt_health_check_conf_t                 *hhccf;
     njt_cycle_t                             *cycle = (njt_cycle_t *) njt_cycle;
-    njt_str_t                                hc_type = njt_string("http");
-    njt_health_check_main_conf_t                  *hmcf;
+    njt_health_check_main_conf_t            *hmcf;
 
     if(upstream) {
         //check wether exist
-        hhccf = njt_health_check_find_hc_by_name_and_type(cycle, &hc_type, &upstream->host);
+        hhccf = njt_health_check_find_http_hc_by_upstream(cycle, &upstream->host);
         if(hhccf == NULL){
             njt_log_error(NJT_LOG_DEBUG, njt_cycle->log, 0,
                 "http upstream:%V has no hc config", &upstream->host);
