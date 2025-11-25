@@ -45,7 +45,7 @@
 # optional - required by kic and sidecar
 ./src/ext/lua/stream
 # optional
-./modules/njet-app-sticky-module
+# ./modules/njet-app-sticky-module
 # optional
 ./modules/njet-http-cluster-limit-conn-module
 # optional
