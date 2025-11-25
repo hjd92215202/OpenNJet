@@ -1310,8 +1310,7 @@ static char *njt_stream_proto_server_merge_srv_conf(njt_conf_t *cf, void *parent
     njt_log_debug(NJT_LOG_DEBUG_EVENT, njt_cycle->log, 0, "stream_proto merge serv config");
     return NJT_CONF_OK;
 }
-
-static njt_int_t njt_stream_proto_server_access_handler(njt_stream_session_t *s)
+static njt_int_t njt_stream_proto_server_access(njt_stream_session_t *s,njt_int_t init)
 {
     njt_stream_proto_server_srv_conf_t *sscf;
     njt_stream_proto_server_client_ctx_t *ctx;
@@ -1366,7 +1365,7 @@ static njt_int_t njt_stream_proto_server_access_handler(njt_stream_session_t *s)
     }
     njt_stream_set_ctx(s, ctx, njt_stream_proto_server_module);
     rc = NJT_DECLINED;
-    if (sscf->tcc_handler->connection_handler)
+    if (sscf->tcc_handler->connection_handler && init)
     {
         rc = sscf->tcc_handler->connection_handler(&ctx->r);
         if (rc == NJT_ERROR || ctx->r.status == TCC_SESSION_CLOSING)
@@ -1377,6 +1376,10 @@ static njt_int_t njt_stream_proto_server_access_handler(njt_stream_session_t *s)
     return rc;
 end:
     return NJT_DECLINED;
+}
+static njt_int_t njt_stream_proto_server_access_handler(njt_stream_session_t *s)
+{
+    return njt_stream_proto_server_access(s,1);
 }
 static void njt_stream_proto_server_update_in_buf(tcc_buf_t *b, size_t used_len)
 {
@@ -1420,9 +1423,16 @@ static njt_int_t njt_stream_proto_server_preread_handler(njt_stream_session_t *s
     {
         return NJT_DECLINED;
     }
+    ctx = njt_stream_get_module_ctx(s, njt_stream_proto_server_module);
+    if (ctx == NULL) {
+        njt_stream_proto_server_access(s,0);
+        ctx = njt_stream_get_module_ctx(s, njt_stream_proto_server_module);
+        if (ctx == NULL) {
+            return NJT_ERROR;
+        }
+    }
     if (sscf->tcc_handler->preread_handler)
     {
-        ctx = njt_stream_get_module_ctx(s, njt_stream_proto_server_module);
         ctx->r.s = s;
         ctx->r.addr_text = (tcc_str_t *)&s->connection->addr_text;
         if (c->buffer != NULL && ctx->r.in_buf.pos == NULL)
