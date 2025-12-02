@@ -6,7 +6,7 @@
  * Copyright (C) 2021-2023  TMLake(Beijing) Technology Co., Ltd.
  */
 
-#include "njt_hc_ctrl_parser.h"
+#include "njt_health_check_ctrl_parser.h"
 #include "njt_core.h"
 #include "js2c_njet_builtins.h"
 /* ========================== Generated parsers ========================== */

@@ -32,7 +32,7 @@ paths:
       - name: typeName
         type: string
         in: path
-        description: 健康检查的类型,支持[stcp|sudp|smysql|http]  s开头表示是stream块对应协议server健康检查   http是http块httpserver健康检查 
+        description: 健康检查的类型,s开头表示是stream配置块对应协议server健康检查(比如smyql表示对stream配置块的upstream server做mysql协议健康检查),h开头表示是http配置块对应协议server健康检查(比如hmyql表示对http配置块的upstream server做mysql协议健康检查),http是http配置块的upstream server做http协议健康检查 
         required: true
         example: http
         enum:

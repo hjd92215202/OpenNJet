@@ -31,7 +31,7 @@
 # optional
 ./modules/njet-http-split-clients-2-module
 # optional
-./modules/njet-health-check-helper
+./modules/njet-health-check-module
 # optional
 ./modules/njet-doc-module
 # required
@@ -146,3 +146,11 @@
 ./modules/njet-stream-ssl-api-module
 # optional
 ./modules/njet-openapi-parser-module
+#optional
+./modules/njet-health-check-http-module
+#optional
+./modules/njet-health-check-tcp-module
+#optional
+./modules/njet-health-check-udp-module
+#optional
+./modules/njet-health-check-mysql-module
