@@ -42,10 +42,10 @@ function _M.login(login_data)
     end
 
     if not ok then
-        return false, userObj
+        return false, nil, userObj, nil
     end
 
-    return true, userObj.id, userObj
+    return true, userObj.id, userObj, nil
 end
 
 return _M

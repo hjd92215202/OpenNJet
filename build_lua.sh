@@ -3,6 +3,10 @@
 export LUA_PATH="`pwd`/luajit/src/?.lua;;"
 LUABIN=`pwd`/luajit/src/luajit 
 
+if [ ! -d "objs" ]; then
+  mkdir objs
+fi
+
 cd objs
 rm -rf scripts
 cp -a ../scripts ./

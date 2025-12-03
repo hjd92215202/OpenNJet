@@ -43,17 +43,21 @@ local function loginFunc(req, res, next)
             goto LOGIN_FINISH
         end
 
-        if not inputObj.api_group_name or not inputObj.login_type or inputObj.login_type == "internal" then
+        if inputObj.login_type == "external" then
+            loginService = require("api_gateway.service.external_login")
+        else if not inputObj.api_group_name or not inputObj.login_type or inputObj.login_type == "internal" then
             loginService = require("api_gateway.service.internal_login")
         else
             -- TODO: create login service object based on login_type, such as external
         end
         if loginService then
-            local ok, userId, userObj = loginService.login(inputObj.login_data)
+            local ok, userId, userObj, uuidStr = loginService.login(inputObj.login_data)
             if ok then
-                -- generate uuid as token
-                uuid.seed()
-                local uuidStr = uuid()
+                if not uuidStr then 
+                    -- generate uuid as token
+                    uuid.seed()
+                    uuidStr = uuid()
+                end
                 local expire = njt.time() + config.token_lifetime
                 -- set token into session
                 local ok, rolesObj = userDao.getUserRoleRel(userId)
