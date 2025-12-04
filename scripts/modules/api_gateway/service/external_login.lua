@@ -93,12 +93,13 @@ local function get_token_and_userinfo_from_keycloak(login_data)
 
     njt.log(njt.INFO, "keycloak user info:", userinfo.body)
 
-    local userinfo_ok, data = pcall(cjson.decode, userinfo.body)
+    local userinfo_ok, userinfo_data = pcall(cjson.decode, userinfo.body)
     if not userinfo_ok then
         njt.log(njt.ERR, "parse keyclaok userinfo info error:", userinfo.body)
         return false, nil, nil
     end
 
+    return true, access_token, userinfo_data
 end
 
 
@@ -114,23 +115,40 @@ function _M.login(login_data)
         return false, nil, nil, nil
     end
 
-    inputObj.domain = "tmlake.com"
+    local inputObj = {}
+    -- inputObj.domain = "tmlake.com"
     inputObj.name = login_data.username
     inputObj.password = login_data.password
-    inputObj.email = userinfo['email']
+    inputObj.email = userinfo["email"]
     inputObj.mobile = '18212341234'
     inputObj.password = util.encryptPassword(inputObj.password)
-    inputObj.name = inputObj.name .. "@" .. inputObj.domain
 
     -- check local wether has user
     local user_exist, userObj = userDao.getUserByName(inputObj.name)
-    if user_exist then
+    if not user_exist then
         -- if exists, then update local user info 
         local create_user_ok, userObj = userDao.createUser(inputObj)
         if not create_user_ok then
             njt.log(njt.ERR, "create user error when use keycloak userinfo")
             return false, nil, nil, nil
         end
+
+        njt.log(njt.INFO, "create user success")
+        -- update role
+        local inputGroupObj = {}
+        inputGroupObj.groups = {}
+        table.insert(inputGroupObj.groups, 1)
+
+        inputGroupObj.id = userObj.id
+
+        local update_group_ok, msg = userDao.updateUserGroupRel(inputGroupObj)
+        if not update_group_ok then
+            userDao.deleteUserById(userObj.id)
+            njt.log(njt.ERR, "udpate user group error")
+            return false, nil, nil, nil
+        end
+
+        njt.log(njt.INFO, "update user group success")
     else
         -- if not exists, then create local user info
         inputObj.id = userObj.id
@@ -141,17 +159,13 @@ function _M.login(login_data)
         end
     end
 
-    if  login_data.username  then
-        ok, userObj = get_user_with_username_password(login_data)
-    elseif login_data.email then
-        ok, userObj = get_user_with_email(login_data)
-    end
-
+    ok, userObj = get_user_with_username_password(login_data)
     if not ok then
         return false, nil, userObj, nil
     end
 
-    return true, userObj.id, userObj, nil
+    njt.log(njt.INFO, "login success")
+    return true, userObj.id, userObj, token
 end
 
 return _M

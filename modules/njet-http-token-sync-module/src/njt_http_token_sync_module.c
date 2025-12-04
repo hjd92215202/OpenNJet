@@ -25,14 +25,14 @@
 #define TOKEN_SYNC_KEYS_KEY 	"token_sync_keys"
 #define TOKEN_SYNC_KEY_PREFIX 	"token_key_"
 #define TOKEN_SYNC_KEY_PREFIX_LEN 	10
-#define TOKEN_SYNC_TEMP_KEY_LEN        1024
+#define TOKEN_SYNC_TEMP_KEY_LEN        4096
 
 
 
 typedef struct
 {
     u_char					color;
-    u_char 					len;
+    u_short 			    len;
 	njt_str_t 				addtional_data;		//addional data
 	njt_uint_t				ori_ttl;    //orignal expire time, sec
 	njt_uint_t				dyn_ttl;    //dynamic expire time, sec
