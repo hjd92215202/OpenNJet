@@ -165,7 +165,11 @@ function _M.login(login_data)
     end
 
     njt.log(njt.INFO, "login success")
-    return true, userObj.id, userObj, token
+    local keycloakInfo = {}
+    keycloakInfo.token = token
+    keycloakInfo.uuid = userinfo.sub
+
+    return true, userObj.id, userObj, keycloakInfo
 end
 
 return _M

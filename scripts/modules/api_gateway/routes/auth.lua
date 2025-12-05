@@ -46,24 +46,26 @@ local function loginFunc(req, res, next)
         if inputObj.login_type == "external" then
             loginService = require("api_gateway.service.external_login")
         elseif not inputObj.api_group_name or not inputObj.login_type or inputObj.login_type == "internal" then
-            -- loginService = require("api_gateway.service.internal_login")
-            loginService = require("api_gateway.service.external_login")
+            loginService = require("api_gateway.service.internal_login")
         else
             -- TODO: create login service object based on login_type, such as external
         end
 
-        -- admin
-        if inputObj.login_data.username == "agw_admin" then
-            loginService = require("api_gateway.service.internal_login")
-        end
+        -- -- admin
+        -- if inputObj.login_data.username == "agw_admin" then
+        --     loginService = require("api_gateway.service.internal_login")
+        -- end
 
         if loginService then
-            local ok, userId, userObj, uuidStr = loginService.login(inputObj.login_data)
+            local ok, userId, userObj, keycloakInfo = loginService.login(inputObj.login_data)
             if ok then
-                if not uuidStr then
+                local uuidStr = nil
+                if not keycloakInfo then
                     -- generate uuid as token
                     uuid.seed()
                     uuidStr = uuid()
+                else
+                    uuidStr = keycloakInfo.token
                 end
                 local expire = njt.time() + config.token_lifetime
                 -- set token into session
@@ -95,6 +97,10 @@ local function loginFunc(req, res, next)
                         userObj.password = nil
                         userObj.mobile = nil
                         userObj.email = nil
+                        userObj.key_id = nil
+                        if keycloakInfo then
+                            userObj.user_uuid = keycloakInfo.uuid
+                        end
                         retObj.user = userObj
                         retObj.roles = rolesDetailObj.roles
                     else

@@ -139,7 +139,9 @@ INSERT INTO api (id,name,group_id,"path","method","desc",param_mode,sign_validat
 INSERT INTO api (id,name,group_id,"path","method","desc",param_mode,sign_validation) VALUES
          (51, 'api gateway',1,'/deploy/app/{name}/config/schema','get','获取应用的config schema',0,0), 
          (52, 'api gateway',1,'/deploy/app/{name}/config','get','获取应用的config',0,0),	
-	 (53, 'api gateway',1,'/deploy/app/{name}/config','post','更新应用的config',0,0);
+	      (53, 'api gateway',1,'/deploy/app/{name}/config','post','更新应用的config',0,0),
+         (54, 'api gateway',1,'/identities/end_user/{id}','get','获取绑定id',0,0),
+         (55, 'api gateway',1,'/identities/end_user/{id}','put','存储绑定id',0,0);
 INSERT INTO api_grant_mode (id,api_id,grant_mode) VALUES
          (1,1,1),
          (2,2,1),
@@ -198,7 +200,9 @@ INSERT INTO api_grant_mode (id,api_id,grant_mode) VALUES
 INSERT INTO api_grant_mode (id,api_id,grant_mode) VALUES
          (51,51,1),
          (52,52,1),
-         (53,53,1);
+         (53,53,1),
+         (54,54,1),
+         (55,55,1);
 INSERT INTO api_grant_rbac(role_id, api_id) select 1, id from api order by id;
 INSERT INTO api_group (id,name,base_path,"desc", "user_id") VALUES
          (1,'api_gateway','/api_gateway','API Gateway',1);
