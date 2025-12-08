@@ -18,6 +18,7 @@ extern njt_int_t njt_http_lua_content_handler(njt_http_request_t *r);
 extern u_char *njt_http_lua_gen_chunk_cache_key(njt_conf_t *cf, const char *tag, const u_char *src, size_t src_len);
 extern njt_int_t njt_http_lua_access_handler_inline(njt_http_request_t *r);
 extern njt_int_t njt_http_lua_access_handler(njt_http_request_t *r);
+extern njt_int_t njt_http_lua_capture_filter_init(njt_conf_t *cf);
 
 njt_str_t dyn_http_server_update_srv_err_msg = njt_string("{\"code\":500,\"msg\":\"server error\"}");
 
@@ -785,6 +786,11 @@ njt_http_dyn_lua_init(njt_conf_t *cf)
 
     cmcf = njt_http_conf_get_module_main_conf(cf, njt_http_core_module);
     lmcf = njt_http_conf_get_module_main_conf(cf, njt_http_lua_module);
+
+    //if static file has run njt_http_lua_capture_filter_init, no need to run again 
+    if (lmcf != NULL && !lmcf->requires_capture_filter) {
+        njt_http_lua_capture_filter_init(cf);
+    }
 
     if (lmcf != NULL && lmcf->requires_access) {
         //there is access_by_lua in static conf file 
