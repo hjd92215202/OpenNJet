@@ -13,11 +13,10 @@ local RETURN_CODE = {
 }
 
 local function getEndUserById(req, res, next)
-    njt.log(njt.ERR, "=================call getuser:".. req.params.id)
     local retObj = {}
     local token_key = "param_end_user_id_uuid_" .. req.params.id
     local rc, tv_str = tokenLib.token_get(token_key)
-    njt.log(njt.ERR, "=================1")
+
     if rc ~= 0 or not tv_str or tv_str == "" then
         retObj.code = RETURN_CODE.UUID_QUERY_FAIL
         retObj.msg = "user_uuid is not exist"
@@ -35,13 +34,14 @@ end
 
 
 local function putEndUserById(req, res, next)
-    njt.log(njt.ERR, "=================call putuser: ".. req.params.id)
     local retObj = {}
+    njt.log(njt.INFO, "==========call putEndUserById")
 
     local ok, decodedObj = pcall(cjson.decode, req.body_raw)
     if not ok then
         retObj.code = RETURN_CODE.WRONG_PUT_DATA
         retObj.msg = "put data is not a valid json"
+        njt.log(njt.INFO, "==========set token put data is not a valid json")
     else
         if not decodedObj.user_uuid then
             retObj.code = RETURN_CODE.WRONG_PUT_DATA
@@ -53,9 +53,11 @@ local function putEndUserById(req, res, next)
             if rc == 0 then
                 retObj.code = RETURN_CODE.SUCCESS
                 retObj.msg = "success"
+                njt.log(njt.INFO, "set token success, enduserid:".. tostring(req.params.id).. "  uuid:".. decodedObj.user_uuid)
             else
                 retObj.code = RETURN_CODE.TOKEN_SET_FAIL
                 retObj.msg = msg
+                njt.log(njt.INFO, "==========set token fail")
             end
         end
     end

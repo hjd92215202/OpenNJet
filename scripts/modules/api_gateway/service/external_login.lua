@@ -120,8 +120,9 @@ function _M.login(login_data)
     inputObj.name = login_data.username
     inputObj.password = login_data.password
     inputObj.email = userinfo["email"]
-    inputObj.mobile = '18212341234'
+    inputObj.mobile = userinfo.mobile
     inputObj.password = util.encryptPassword(inputObj.password)
+    inputObj.nickname = login_data.username
 
     -- check local wether has user
     local user_exist, userObj = userDao.getUserByName(inputObj.name)
@@ -138,6 +139,7 @@ function _M.login(login_data)
         local inputGroupObj = {}
         inputGroupObj.groups = {}
         table.insert(inputGroupObj.groups, 1)
+        table.insert(inputGroupObj.groups, 2)
 
         inputGroupObj.id = userObj.id
 
