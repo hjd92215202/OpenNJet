@@ -47,6 +47,7 @@ typedef struct
     njt_event_t  wake;
     njt_msec_t mtask_timeout;
     njt_tcc_io_ctx_t tcc_io_ctx;
+    njt_queue_t     queue;
 } njt_stream_proto_server_client_ctx_t;
 
 typedef struct
