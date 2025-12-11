@@ -35,7 +35,7 @@ njt_http_dyn_server_init_worker(njt_cycle_t *cycle);
 static njt_int_t
 njt_http_dyn_server_delete_configure_server();
 
-static njt_int_t njt_http_dyn_server_write_data(njt_http_dyn_server_info_t *server_info);
+static njt_int_t njt_http_dyn_server_write_data(njt_http_dyn_server_info_t *server_info,njt_int_t add);
 
 static njt_int_t njt_http_dyn_server_post_merge_servers();
 static njt_int_t njt_http_dyn_server_delete_dirtyservers(njt_http_dyn_server_info_t *server_info);
@@ -185,7 +185,7 @@ static njt_int_t njt_http_add_server_handler(njt_http_dyn_server_info_t *server_
 	njt_pool_t  *old_pool = NULL;
 	njt_http_conf_ctx_t* http_ctx;
 	njt_str_t server_name;
-	njt_str_t server_path; // = njt_string("./conf/add_server.txt");
+	njt_str_t server_path; 
 	njt_http_core_main_conf_t *cmcf;
 	njt_http_core_srv_conf_t *cscf;
 	njt_uint_t s;
@@ -388,7 +388,7 @@ out:
 static int njt_agent_server_change_handler_internal(njt_str_t *key, njt_str_t *value, void *data,njt_str_t *out_msg) {
 	njt_str_t  add = njt_string("add");
 	njt_str_t  del = njt_string("del");
-	njt_str_t  del_topic = njt_string("");
+	//njt_str_t  del_topic = njt_string("");
 	njt_str_t  worker_str = njt_string("/worker_a");
 	njt_str_t  obj_key = njt_string(VS_DEL_EVENT);
 	njt_str_t  new_key;
@@ -411,7 +411,7 @@ static int njt_agent_server_change_handler_internal(njt_str_t *key, njt_str_t *v
 	}
 
 	if(server_info->type.len == add.len && njt_strncmp(server_info->type.data,add.data,server_info->type.len) == 0 ) {
-		rc = njt_http_dyn_server_write_data(server_info);
+		rc = njt_http_dyn_server_write_data(server_info,1);
 		if(rc == NJT_OK) {
 			if(key->len > worker_str.len && njt_strncmp(key->data,worker_str.data,worker_str.len) == 0) {
 				from_api_add = 1;
@@ -419,8 +419,7 @@ static int njt_agent_server_change_handler_internal(njt_str_t *key, njt_str_t *v
 			rc = njt_http_add_server_handler(server_info,from_api_add);  //njt_http_dyn_server_delete_handler
 			if(rc != NJT_OK) {
 				if(from_api_add == 0){
-					//njt_log_error(NJT_LOG_ERR, njt_cycle->log, 0, "add topic_kv_change_handler error key=%V,value=%V",key,value);
-					njt_kv_sendmsg(key,&del_topic,0);
+					//njt_kv_sendmsg(key,&del_topic,0);
 				}
 				njt_log_error(NJT_LOG_DEBUG, njt_cycle->log, 0, "add topic_kv_change_handler error key=%V,value=%V",key,value);
 			} else {
@@ -432,8 +431,15 @@ static int njt_agent_server_change_handler_internal(njt_str_t *key, njt_str_t *v
 				//njt_log_error(NJT_LOG_DEBUG, njt_cycle->log, 0, "add topic_kv_change_handler succ key=%V,value=%V",key,value);
 			}
 		}
+		if(server_info->file.data != NULL) {
+			if (njt_delete_file(server_info->file.data) == NJT_FILE_ERROR)
+			{
+				njt_log_error(NJT_LOG_EMERG, njt_cycle->log, njt_socket_errno,
+							  njt_delete_file_n " %s failed", server_info->file.data);
+			}
+		}
 	} else if(server_info->type.len == del.len && njt_strncmp(server_info->type.data,del.data,server_info->type.len) == 0 ){
-		rc = njt_http_dyn_server_write_data(server_info);
+		rc = njt_http_dyn_server_write_data(server_info,0);
 		if (rc == NJT_OK) {
 			rc = njt_http_dyn_server_delete_handler(server_info);
 			if (rc == NJT_OK) {
@@ -774,7 +780,7 @@ static njt_int_t njt_http_server_write_file(njt_fd_t fd,njt_http_dyn_server_info
 		}
 		remain = data + buffer_len - p;
 
-		rlen = njt_write_fd(fd, data, p - data);
+		rlen = njt_write_n(fd, data, p - data);
 		if(rlen < 0) {
 			return NJT_ERROR;
 		}
@@ -782,7 +788,7 @@ static njt_int_t njt_http_server_write_file(njt_fd_t fd,njt_http_dyn_server_info
 	return NJT_OK;
 
 }
-static njt_int_t njt_http_dyn_server_write_data(njt_http_dyn_server_info_t *server_info) {
+static njt_int_t njt_http_dyn_server_write_data(njt_http_dyn_server_info_t *server_info,njt_int_t add) {
 
 
 
@@ -800,12 +806,15 @@ static njt_int_t njt_http_dyn_server_write_data(njt_http_dyn_server_info_t *serv
 	cscf = njt_http_get_srv_by_port((njt_cycle_t  *)njt_cycle,&server_info->addr_port,&server_info->old_server_name);	
 	(*server_info).cscf = cscf;
 
+	if(add == 0) {
+		return NJT_OK;
+	}
 	server_path = njt_cycle->log_prefix;
 
 
-	server_full_file.len = server_path.len + server_file.len + 50;//  workid_add_server.txt
+	server_full_file.len = server_path.len + server_file.len + 128;//  workid_add_server.txt
 	server_full_file.data = njt_pcalloc(server_info->pool, server_full_file.len);
-	p = njt_snprintf(server_full_file.data, server_full_file.len, "%Vlogs/%d_%d_%V", &server_path, njt_process, njt_worker,
+	p = njt_snprintf(server_full_file.data, server_full_file.len, "%Vlogs/%d_%d_%d_%P_%V", &server_path, njt_process, njt_worker,njt_is_privileged_agent,njt_pid,
                          &server_file);
 
 	server_full_file.len = p - server_full_file.data;
