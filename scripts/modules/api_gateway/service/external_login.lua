@@ -154,6 +154,8 @@ function _M.login(login_data)
     else
         -- if not exists, then create local user info
         inputObj.id = userObj.id
+        inputObj.email = userObj.email
+        inputObj.mobile = userObj.mobile
         local update_user_ok, msg = userDao.updateUser(inputObj)
         if not update_user_ok then
             njt.log(njt.ERR, "udpate user error when use keycloak userinfo")
