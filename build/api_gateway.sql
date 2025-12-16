@@ -141,7 +141,8 @@ INSERT INTO api (id,name,group_id,"path","method","desc",param_mode,sign_validat
          (52, 'api gateway',1,'/deploy/app/{name}/config','get','获取应用的config',0,0),	
 	      (53, 'api gateway',1,'/deploy/app/{name}/config','post','更新应用的config',0,0),
          (54, 'api gateway',1,'/identities/end_user/{id}','get','获取绑定id',0,0),
-         (55, 'api gateway',1,'/identities/end_user/{id}','put','存储绑定id',0,0);
+         (55, 'api gateway',1,'/identities/end_user/{id}','put','存储绑定id',0,0),
+         (56, 'api gateway',1,'/identities/realm','get','获取keycloak realm',0,0);
 INSERT INTO api_grant_mode (id,api_id,grant_mode) VALUES
          (1,1,1),
          (2,2,1),
@@ -202,12 +203,17 @@ INSERT INTO api_grant_mode (id,api_id,grant_mode) VALUES
          (52,52,1),
          (53,53,1),
          (54,54,1),
-         (55,55,1);
+         (55,55,1),
+         (56,56,0);
 INSERT INTO api_grant_rbac(role_id, api_id) select 1, id from api order by id;
 INSERT INTO api_group (id,name,base_path,"desc", "user_id") VALUES
          (1,'api_gateway','/api_gateway','API Gateway',1);
 INSERT INTO api_role (id,name,"desc") VALUES
-         (1,'agw_admin','API Gateway admin ');
+         (1,'agw_admin','API Gateway admin '),
+         (2,'agw_general','API Gateway general user');
+INSERT INTO api_grant_rbac(role_id, api_id) VALUES
+         (2, 54),
+         (2, 55);
 INSERT INTO api_user (id,name,password,email,mobile) VALUES
          (1,'agw_admin','S3r0szEkhEQbML9RX9g8U0Ax0cs=',NULL,NULL);
 INSERT INTO api_user_group (id,name,"desc") VALUES

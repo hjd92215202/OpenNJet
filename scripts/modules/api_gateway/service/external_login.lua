@@ -1,4 +1,5 @@
 local userDao = require("api_gateway.dao.user")
+local groupDao = require("api_gateway.dao.group")
 local util = require("api_gateway.utils.util")
 local authDao = require("api_gateway.dao.auth")
 local tokenLib=require("njt.token")
@@ -36,12 +37,16 @@ local function get_token_and_userinfo_from_keycloak(login_data)
     local http = require "resty.http"
     local cjson = require "cjson"
 
+
+    -- get keycloak config from db
+    
+
     local body = {
         username = login_data.username,
         password = login_data.password,
         client_id = 'bigModel',
         client_secret = 'gx9ycS7j1oHLP9AKsqPCZRrdV7F4rrXU',
-        scope = 'openid',
+        scope = 'openid,groups',
         grant_type = 'password'
     }
 
@@ -61,7 +66,7 @@ local function get_token_and_userinfo_from_keycloak(login_data)
         return false, nil, nil
     end
     
-    njt.log(njt.INFO, "get keycloak token body:", res.body)
+    -- njt.log(njt.INFO, "get keycloak token body:", res.body)
 
     local success, data = pcall(cjson.decode, res.body)
     if not success then
@@ -99,6 +104,8 @@ local function get_token_and_userinfo_from_keycloak(login_data)
         return false, nil, nil
     end
 
+    -- 
+
     return true, access_token, userinfo_data
 end
 
@@ -112,6 +119,12 @@ function _M.login(login_data)
     local ok, token, userinfo = get_token_and_userinfo_from_keycloak(login_data)
     if not ok then
         njt.log(njt.ERR, "get token and user info from keycloak error")
+        return false, nil, nil, nil
+    end
+
+    -- check group info
+    if not userinfo_data.groups or #userinfo_data.groups < 1 then
+        njt.log(njt.ERR, "group info is empty of user:".. login_data.username)
         return false, nil, nil, nil
     end
 
@@ -135,23 +148,9 @@ function _M.login(login_data)
         end
 
         njt.log(njt.INFO, "create user success")
-        -- update role
-        local inputGroupObj = {}
-        inputGroupObj.groups = {}
-        table.insert(inputGroupObj.groups, 1)
-        table.insert(inputGroupObj.groups, 2)
-
-        inputGroupObj.id = userObj.id
-
-        local update_group_ok, msg = userDao.updateUserGroupRel(inputGroupObj)
-        if not update_group_ok then
-            userDao.deleteUserById(userObj.id)
-            njt.log(njt.ERR, "udpate user group error")
-            return false, nil, nil, nil
-        end
-
-        njt.log(njt.INFO, "update user group success")
     else
+        -- need update group info of user
+
         -- if not exists, then create local user info
         inputObj.id = userObj.id
         inputObj.email = userObj.email
@@ -162,6 +161,66 @@ function _M.login(login_data)
             return false, nil, nil, nil
         end
     end
+
+    -- get domain from sys_config
+    local keycloak_domain = nil
+
+    -- sync user group relation
+    local group_item = nil
+    for i, g in ipairs(userinfo_data.groups) do
+        group_item = tostring(g)
+        -- format group_item@domain
+        group_item = group_item.. "@".. keycloak_domain
+        njt.log(njt.INFO, "Group[", i, "] = ", group_item)
+        local group_exist, groupObj = groupDao.getGroupByName(group_item)
+        
+        -- if not exist group
+        if not group_exist then
+            -- add group
+            local groupInputObj = {}
+            groupInputObj.name = group_item
+            groupInputObj.desc = "API Gateway ".. group_item.. " group"
+            local create_group_ok, groupObj = groupDao.createGroup(groupInputObj)
+            if not create_group_ok then
+                njt.log(njt.ERR, "create group error: ".. group_item)
+                return false, nil, nil, nil
+            end
+
+            -- add group_role_relation(innner role of general, roleid is 2)
+            local userGroupRoleObj = {id=groupObj.id,roles={}}
+            table.insert(userGroupRoleObj.roles, 2)
+            local update_grouprole_ok, msg = groupDao.updateUserGroupRoleRel(userGroupRoleObj)
+            if not update_grouprole_ok then
+                njt.log(njt.ERR, "update group role relation error: ".. group_item)
+                return false, nil, nil, nil
+            end
+        end
+    end
+
+    local inputGroupObj = {}
+    inputGroupObj.groups = {}
+    -- get group id
+    for i, g in ipairs(userinfo_data.groups) do
+        group_item = tostring(g)
+        group_item = group_item.. "@".. keycloak_domain
+        local get_group_ok, groupObj = groupDao.getGroupByName(group_item)
+        if not get_group_ok then
+            njt.log(njt.ERR, "get group error: ".. group_item)
+            return false, nil, nil, nil
+        end
+        table.insert(inputGroupObj.groups, groupObj.id)
+    end
+
+    inputGroupObj.id = userObj.id
+
+    local update_group_ok, msg = userDao.updateUserGroupRel(inputGroupObj)
+    if not update_group_ok then
+        userDao.deleteUserById(userObj.id)
+        njt.log(njt.ERR, "udpate user group error")
+        return false, nil, nil, nil
+    end
+
+    njt.log(njt.INFO, "update user group success")
 
     ok, userObj = get_user_with_username_password(login_data)
     if not ok then
