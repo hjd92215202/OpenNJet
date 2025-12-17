@@ -1,72 +1,45 @@
 local lor = require("lor.index")
 local cjson = require("cjson")
+local sysConfigDao = require("api_gateway.dao.sys_config")
 
-local endUserRouter = lor:Router()
-
-local tokenLib = require("njt.token")
-local config = require("api_gateway.config.config")
+local realmRouter = lor:Router()
 
 
 local RETURN_CODE = {
     SUCCESS = 0,
-    UUID_QUERY_FAIL = 10
+    REALM_QUERY_FAIL = 10
 }
 
-local function getEndUserById(req, res, next)
+local function getRealm(req, res, next)
     local retObj = {}
-    local token_key = "param_end_user_id_uuid_" .. req.params.id
-    local rc, tv_str = tokenLib.token_get(token_key)
 
-    if rc ~= 0 or not tv_str or tv_str == "" then
-        retObj.code = RETURN_CODE.UUID_QUERY_FAIL
-        retObj.msg = "user_uuid is not exist"
+    -- get realm
+    local config_key = "keycloak_realm"
+    local ok, msg = sysConfigDao.getSysConfigByKey(config_key)
+    if not ok then
+        retObj.code = RETURN_CODE.REALM_QUERY_FAIL
+        retObj.msg = "keycloak_realm is not exist"
     else
-        local userObj = {}
-        userObj.user_uuid = tv_str
+        local keycloakRealmObj = {}
+        keycloakRealmObj.realms = {}
+        for i, g in ipairs(msg) do
+            local config_value = tostring(g.config_value)
+            
+            for word in string.gmatch(config_value, "%S+") do
+                table.insert(keycloakRealmObj.realms, word)
+            end
+        end
 
         retObj.code = RETURN_CODE.SUCCESS
         retObj.msg = "success"
-        retObj.data = userObj
+        retObj.data = keycloakRealmObj
     end
 
     res:json(retObj, true)
 end
 
 
-local function putEndUserById(req, res, next)
-    local retObj = {}
-    local ok, decodedObj = pcall(cjson.decode, req.body_raw)
-    if not ok then
-        retObj.code = RETURN_CODE.WRONG_PUT_DATA
-        retObj.msg = "put data is not a valid json"
-        njt.log(njt.INFO, "set token put data is not a valid json")
-    else
-        if not decodedObj.user_uuid then
-            retObj.code = RETURN_CODE.WRONG_PUT_DATA
-            retObj.msg = "put data is not a valid json"
-        else
-            -- set token
-            local token_key = "param_end_user_id_uuid_" .. req.params.id
-            local rc, msg = tokenLib.token_set(token_key, decodedObj.user_uuid, config.token_lifetime)
-            if rc == 0 then
-                retObj.code = RETURN_CODE.SUCCESS
-                retObj.msg = "success"
-                njt.log(njt.INFO, "set token success, enduserid:".. tostring(req.params.id).. "  uuid:".. decodedObj.user_uuid)
-            else
-                retObj.code = RETURN_CODE.TOKEN_SET_FAIL
-                retObj.msg = msg
-                njt.log(njt.INFO, "set token fail")
-            end
-        end
-    end
-
-    res:json(retObj, true)
-end
+realmRouter:get("/realm", getRealm)
 
 
-
-endUserRouter:put("/end_user/:id", putEndUserById)
-endUserRouter:get("/end_user/:id", getEndUserById)
-
-
-return endUserRouter
+return realmRouter
