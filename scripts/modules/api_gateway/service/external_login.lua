@@ -55,7 +55,7 @@ local function get_token_and_userinfo_from_keycloak(login_data)
             if config.config_key == "keycloak_client_id" then
                 keycloak_client_id = config.config_value
             elseif config.config_key == "keycloak_client_secret" then
-                keycloak_client_secret = config.config_value
+                keycloak_client_secret = tostring(njt.decode_base64(tostring(config.config_value)))
             elseif config.config_key == "keycloak_scope" then
                 keycloak_scope = config.config_value
             elseif config.config_key == "keycloak_grant_type" then
