@@ -6,6 +6,7 @@
 #include <njt_core.h>
 
 
+int njt_token_key_maxlen_set(njt_uint_t maxlen);
 int njt_token_get(njt_str_t *token, njt_str_t *value);
 int njt_token_set(njt_str_t *token, njt_str_t *value, int ttl);  //ttl s
 // int njt_token_del(njt_str_t *token);     //now not support
