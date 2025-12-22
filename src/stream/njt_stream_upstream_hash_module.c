@@ -224,7 +224,10 @@ njt_stream_upstream_get_hash_peer(njt_peer_connection_t *pc, void *data)
             peer = peer->next;
             p++;
         }
-
+        if (peer->del_pending || hp->rrp.number < p)
+        { // by zyg
+            goto next;
+        }
         n = p / (8 * sizeof(uintptr_t));
         m = (uintptr_t) 1 << p % (8 * sizeof(uintptr_t));
 
@@ -466,6 +469,10 @@ njt_stream_upstream_update_chash( njt_stream_upstream_srv_conf_t *us)
         return NJT_OK;
     }
     for (peer = peers->peer; peer; peer = peer->next) {
+        if (peer->del_pending == 1)
+        {
+            break;
+        }
         server = &peer->server;
 
         /*
@@ -694,6 +701,10 @@ njt_stream_upstream_get_chash_peer(njt_peer_connection_t *pc, void *data)
              peer;
              peer = peer->next, i++)
         {
+            if (peer->del_pending || hp->rrp.number < i + 1)
+            { // by zyg
+                break;
+            }
             n = i / (8 * sizeof(uintptr_t));
             m = (uintptr_t) 1 << i % (8 * sizeof(uintptr_t));
 
@@ -837,6 +848,8 @@ njt_stream_upstream_hash(njt_conf_t *cf, njt_command_t *cmd, void *conf)
                            "invalid parameter \"%V\"", &value[2]);
         return NJT_CONF_ERROR;
     }
-
+#if (NJT_STREAM_ADD_DYNAMIC_UPSTREAM)
+	uscf->balancing = value[0];
+#endif
     return NJT_CONF_OK;
 }

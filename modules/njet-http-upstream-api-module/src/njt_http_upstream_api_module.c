@@ -40,6 +40,8 @@ typedef struct
 
 } njt_http_upstream_api_request_topic;
 
+extern njt_int_t njt_reg_http_peer_change();
+extern njt_int_t njt_reg_stream_peer_change();
 static njt_int_t
 njt_http_upstream_api_handler(njt_http_request_t *r);
 
@@ -204,6 +206,8 @@ err:
 static njt_int_t
 njt_http_upstream_api_init_worker(njt_cycle_t *cycle)
 {
+	njt_reg_http_peer_change();
+	njt_reg_stream_peer_change();
 	return NJT_OK;
 }
 
@@ -360,10 +364,12 @@ static int njt_http_upstream_api_rpc_msg_handler(njt_dyn_rpc_res_t *res, njt_str
 	rc = NJT_ERROR;
 	njt_str_t err_msg = njt_string("{\"error\":{\"status\":404,\"text\":\"unknown error\",\"code\":\"UnknownError\"},\"request_id\":\"N/A\",\"href\":\"https://njet.org/en/docs/http/njt_http_api_module.html\"}");
 	ctx = res->data;
-	njt_log_error(NJT_LOG_INFO, njt_cycle->log, 0, "hand rpc time : %M", njt_current_msec);
+	
 	if (ctx->dlmcf->size > ctx->index && ctx->dlmcf->reqs[ctx->index] == ctx->req)
 	{
 		req = ctx->req;
+
+		njt_log_error(NJT_LOG_INFO, req->connection->log, 0, "hand rpc time : %M", njt_current_msec);
 		if (res->rc == RPC_RC_OK)
 		{
 			rc = njt_http_upstream_api_request_output(req, NJT_OK, msg);

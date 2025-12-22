@@ -222,7 +222,9 @@ njt_http_upstream_get_hash_peer(njt_peer_connection_t *pc, void *data)
             peer = peer->next;
             p++;
         }
-
+        if(peer->del_pending || hp->rrp.number < p) { //by zyg
+            goto next;
+        }
         n = p / (8 * sizeof(uintptr_t));
         m = (uintptr_t) 1 << p % (8 * sizeof(uintptr_t));
 
@@ -463,6 +465,10 @@ njt_http_upstream_update_chash(njt_http_upstream_srv_conf_t *us)
     }
 
     for (peer = peers->peer; peer; peer = peer->next) {
+        if (peer->del_pending == 1)
+        {
+            break;
+        }
         server = &peer->server;
 
         /*
@@ -690,6 +696,10 @@ njt_http_upstream_get_chash_peer(njt_peer_connection_t *pc, void *data)
              peer;
              peer = peer->next, i++)
         {
+            if (peer->del_pending || hp->rrp.number < i + 1)
+            { // by zyg
+                break;
+            }
             n = i / (8 * sizeof(uintptr_t));
             m = (uintptr_t) 1 << i % (8 * sizeof(uintptr_t));
 

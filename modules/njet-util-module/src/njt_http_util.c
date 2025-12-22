@@ -27,6 +27,10 @@ njt_http_core_srv_conf_t* njt_http_get_srv_by_server_name(njt_cycle_t *cycle,njt
 	njt_str_t server_low_name,full_name;
 	njt_url_t  u;
 	njt_uint_t         worker;
+	njt_str_t udp = njt_string(" udp");
+	njt_str_t new_addr_port;
+	int type;
+	u_char *p;
 	struct sockaddr_in   *ssin;
 #if (NJT_HAVE_INET6)
 	struct sockaddr_in6  *ssin6;
@@ -41,9 +45,24 @@ njt_http_core_srv_conf_t* njt_http_get_srv_by_server_name(njt_cycle_t *cycle,njt
 	if(pool == NULL) {
 		return NULL;
 	}
-
+	new_addr_port = *addr_port;
+	for(i = 0; i < addr_port->len; i++){
+		if(addr_port->data[i] == '\0' || addr_port->data[i] == '\n' || addr_port->data[i] == '\t' || addr_port->data[i] == ' ' || addr_port->data[i] == '\r'){
+			new_addr_port.len = i;
+			break;
+		}
+	}
+	type = SOCK_STREAM;
+	p = njt_strlcasestrn(addr_port->data + i,addr_port->data + addr_port->len,udp.data,udp.len - 1);
+	if(p != NULL) {
+		if (p + udp.len == addr_port->data + addr_port->len) {  //结尾
+			type = SOCK_DGRAM;
+		} else if(p[udp.len] == '\0' || p[udp.len] == '\n' || p[udp.len] == '\t' || p[udp.len] == ' ' || p[udp.len] == '\r'){
+			type = SOCK_DGRAM;
+		}
+	}
 	njt_memzero(&u,sizeof(njt_url_t));
-	u.url = *addr_port;
+	u.url = new_addr_port;
 	u.default_port = 80;
 	u.no_resolve = 1;
 
@@ -74,6 +93,9 @@ njt_http_core_srv_conf_t* njt_http_get_srv_by_server_name(njt_cycle_t *cycle,njt
 			if(ls[i].server_type != NJT_HTTP_SERVER_TYPE){
 				continue; // 非http listen
 			}
+			if(ls[i].type != type){
+				continue; //
+			}
 			if (ls[i].reuseport && ls[i].worker != worker) {
 				continue; 
 			}
@@ -92,7 +114,7 @@ njt_http_core_srv_conf_t* njt_http_get_srv_by_server_name(njt_cycle_t *cycle,njt
 			}
 		}
 		if (target_ls == NULL) {
-			njt_log_error(NJT_LOG_INFO, cycle->log, 0, "can`t find listen server %V",addr_port);
+			njt_log_error(NJT_LOG_DEBUG, cycle->log, 0, "can`t find listen server %V",addr_port);
 			goto out;
 		}
 		port = target_ls->servers;
@@ -191,6 +213,8 @@ njt_int_t njt_http_get_listens_by_server(njt_array_t *array,njt_http_core_srv_co
 	struct sockaddr_in6  *sin6, ssin6;
 	struct sockaddr_in   *sin,   ssin;
 	in_port_t  nport;
+	njt_uint_t  addr_opt_len = 16; //"udp"
+	u_char *p;
 	//njt_uint_t  addr_len = NJT_SOCKADDR_STRLEN;
 	worker = njt_worker;
 	if (njt_process == NJT_PROCESS_HELPER && njt_is_privileged_agent) {
@@ -264,13 +288,22 @@ njt_int_t njt_http_get_listens_by_server(njt_array_t *array,njt_http_core_srv_co
 			if(listen != NULL) {
 				if (ls[i].sockaddr->sa_family == AF_UNIX) {
 					*listen = ls[i].addr_text;
+					if(ls[i].type == SOCK_DGRAM) {
+						listen->len = ls[i].addr_text.len + addr_opt_len;
+						listen->data = njt_pnalloc(array->pool, listen->len);
+						if (listen->data != NULL)
+						{
+							p = njt_snprintf(listen->data, listen->len, "%V udp",&ls[i].addr_text);
+							listen->len = p - listen->data;
+						}
+					}
 				} else {
 					nport = njt_inet_get_port(ls[i].sockaddr);
-					data.data = njt_pnalloc(array->pool, NJT_SOCKADDR_STRLEN);
+					data.len = NJT_SOCKADDR_STRLEN + addr_opt_len;
+					data.data = njt_pnalloc(array->pool, data.len);
 					if (data.data == NULL) {
 						return NJT_ERROR_ERR;
 					}
-					data.len = NJT_SOCKADDR_STRLEN;
 
 					//njt_memzero(&sockaddr,sizeof(struct sockaddr ));
 					//sockaddr.sa_family = ls[i].sockaddr->sa_family;
@@ -297,6 +330,13 @@ njt_int_t njt_http_get_listens_by_server(njt_array_t *array,njt_http_core_srv_co
 						return NJT_ERROR;
 					}
 					data.len = len;
+					if(ls[i].type == SOCK_DGRAM) {
+						data.data[len] = ' ';
+						data.data[len+1] = 'u';
+						data.data[len+2] = 'd';
+						data.data[len+3] = 'p';
+						data.len = len + 4;  //空格udp 四个字符。
+					}
 					*listen = data;
 				}
 
@@ -461,7 +501,7 @@ void njt_http_location_destroy(njt_http_core_loc_conf_t *clcf,njt_int_t del_toic
 	}
 }
 
-#if(NJT_HTTP_DYNAMIC_UPSTREAM)
+#if(NJT_HTTP_ADD_DYNAMIC_UPSTREAM)
 njt_int_t njt_http_upstream_del(njt_cycle_t  *cycle,njt_http_upstream_srv_conf_t *upstream) {
 
 	njt_uint_t                      i;
@@ -469,7 +509,7 @@ njt_int_t njt_http_upstream_del(njt_cycle_t  *cycle,njt_http_upstream_srv_conf_t
 	njt_http_upstream_main_conf_t  *umcf;
 	njt_int_t rc,ret;
 
-	njt_log_debug(NJT_LOG_DEBUG_HTTP, njt_cycle->log, 0, "njt_http_upstream_del=%V,ref_count=%d,client_count=%d",&upstream->host,upstream->ref_count,upstream->client_count);	
+	njt_log_debug(NJT_LOG_DEBUG_HTTP, njt_cycle->log, 0, "try njt_http_upstream_del=%V,port=%d,ref_count=%d,client_count=%d",&upstream->host,upstream->port,upstream->ref_count,upstream->client_count);	
 	if (upstream->ref_count != 0 || upstream->dynamic != 1) {
 		return NJT_ERROR;
 	}
@@ -487,7 +527,7 @@ njt_int_t njt_http_upstream_del(njt_cycle_t  *cycle,njt_http_upstream_srv_conf_t
 			if (rc == NJT_OK)
 			{
 				njt_array_delete_idx(&umcf->upstreams,i);
-				njt_log_debug(NJT_LOG_DEBUG_HTTP, njt_cycle->log, 0, "njt_http_upstream_del=%V,ref_count=%d,client_count=%d",&upstream->host,upstream->ref_count,upstream->client_count);	
+				njt_log_debug(NJT_LOG_DEBUG_HTTP, njt_cycle->log, 0, "njt_http_upstream_del=%V,port=%d,ref_count=%d,client_count=%d",&upstream->host,upstream->port,upstream->ref_count,upstream->client_count);	
 				
 				ret = NJT_OK;
 				if(njet_master_cycle != NULL) {
@@ -890,7 +930,7 @@ static void njt_http_upstream_destroy(njt_http_upstream_srv_conf_t *upstream){
 		upstream->peer.destroy_upstream(upstream);
 	}
 	if(upstream != NULL) {
-		njt_log_debug(NJT_LOG_DEBUG_HTTP, njt_cycle->log, 0, "njt_http_upstream_destroy=%V,ref_count=%d,client_count=%d,pool=%p",&upstream->host,upstream->ref_count,upstream->client_count,upstream->pool);	
+		njt_log_debug(NJT_LOG_DEBUG_HTTP, njt_cycle->log, 0, "njt_http_upstream_destroy=%V,port=%d,ref_count=%d,client_count=%d,pool=%p",&upstream->host,upstream->port,upstream->ref_count,upstream->client_count,upstream->pool);	
 	}
 	njt_http_upstream_destroy_cache_domain(upstream);
 }
@@ -920,7 +960,7 @@ void njt_http_location_upstream_destroy(njt_http_core_loc_conf_t *clcf,njt_http_
 			plcf = clcf->loc_conf[njt_http_proxy_module.ctx_index];
 			if (plcf != NULL && plcf->upstream.upstream != upstream)
 			{
-				njt_log_debug(NJT_LOG_DEBUG_HTTP, njt_cycle->log, 0, "njt_http_location_upstream_destroy=%V,ref_count=%d,client_count=%d",&upstream->host,upstream->ref_count,upstream->client_count);	
+				njt_log_debug(NJT_LOG_DEBUG_HTTP, r->connection->log, 0, "njt_http_location_upstream_destroy=%V,ref_count=%d,client_count=%d",&upstream->host,upstream->ref_count,upstream->client_count);	
 				njt_http_upstream_del((njt_cycle_t *)njt_cycle, upstream);
 			}
 		}
@@ -929,7 +969,7 @@ void njt_http_location_upstream_destroy(njt_http_core_loc_conf_t *clcf,njt_http_
 		if (plcf != NULL && plcf->upstream.upstream != NULL && plcf->upstream.upstream != upstream)
 		{
 			if(plcf->upstream.upstream != NULL && upstream != NULL) {
-				njt_log_debug(NJT_LOG_DEBUG_HTTP, njt_cycle->log, 0, "subrequest njt_http_location_upstream_destroy=%V,ref_count=%d,client_count=%d",&plcf->upstream.upstream->host,upstream->ref_count,upstream->client_count);	
+				njt_log_debug(NJT_LOG_DEBUG_HTTP, r->connection->log, 0, "subrequest njt_http_location_upstream_destroy=%V,ref_count=%d,client_count=%d",&plcf->upstream.upstream->host,upstream->ref_count,upstream->client_count);	
 			}
 			njt_http_upstream_del((njt_cycle_t *)njt_cycle, plcf->upstream.upstream);
 		}

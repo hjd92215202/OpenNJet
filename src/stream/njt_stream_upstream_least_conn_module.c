@@ -133,6 +133,9 @@ njt_stream_upstream_get_least_conn_peer(njt_peer_connection_t *pc, void *data)
          peer;
          peer = peer->next, i++)
     {
+        if(peer->del_pending || rrp->number < i+1) { //by zyg
+            break;
+        }
         n = i / (8 * sizeof(uintptr_t));
         m = (uintptr_t) 1 << i % (8 * sizeof(uintptr_t));
 
@@ -190,6 +193,10 @@ njt_stream_upstream_get_least_conn_peer(njt_peer_connection_t *pc, void *data)
              peer;
              peer = peer->next, i++)
         {
+            if (peer->del_pending || rrp->number < i + 1) //by zyg
+            {
+                break;
+            }
             n = i / (8 * sizeof(uintptr_t));
             m = (uintptr_t) 1 << i % (8 * sizeof(uintptr_t));
 
@@ -262,10 +269,13 @@ failed:
                        "get least conn peer, backup servers");
 
         rrp->peers = peers->next;
-
-        n = (rrp->peers->number + (8 * sizeof(uintptr_t) - 1))
-                / (8 * sizeof(uintptr_t));
-
+        if (rrp->number < rrp->peers->number)  //by zyg. 以小的去初始化。
+        {
+            n = (rrp->number + (8 * sizeof(uintptr_t) - 1)) / (8 * sizeof(uintptr_t));
+        } else {
+            n = (rrp->peers->number + (8 * sizeof(uintptr_t) - 1))
+                    / (8 * sizeof(uintptr_t));
+        }
         for (i = 0; i < n; i++) {
             rrp->tried[i] = 0;
         }
@@ -302,7 +312,9 @@ njt_stream_upstream_least_conn(njt_conf_t *cf, njt_command_t *cmd, void *conf)
     }
 
     uscf->peer.init_upstream = njt_stream_upstream_init_least_conn;
-
+#if (NJT_STREAM_ADD_DYNAMIC_UPSTREAM)
+	uscf->balancing = ((njt_str_t *)cf->args->elts)[0];
+#endif
     uscf->flags = NJT_STREAM_UPSTREAM_CREATE
                   |NJT_STREAM_UPSTREAM_WEIGHT
                   |NJT_STREAM_UPSTREAM_MAX_CONNS

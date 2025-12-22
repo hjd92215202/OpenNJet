@@ -7,15 +7,13 @@
 # required
 ./modules/njet-http-dyn-server-api-module
 # required
-./modules/njet-http-upstream-api-module
+./modules/njet-http-upstream-member-module
 # required
 ./modules/njet-vtsc-module
 # required
 ./modules/njet-vtsd-module
 # required
 ./modules/njet-helper-ctrl-module
-# optional
-#./modules/njet-helper-dynconf-update-module
 # required
 ./modules/njet-helper-broker-module
 # required
@@ -33,7 +31,7 @@
 # optional
 ./modules/njet-http-split-clients-2-module
 # optional
-./modules/njet-health-check-helper
+./modules/njet-health-check-module
 # optional
 ./modules/njet-doc-module
 # required
@@ -47,7 +45,7 @@
 # optional - required by kic and sidecar
 ./src/ext/lua/stream
 # optional
-./modules/njet-app-sticky-module
+# ./modules/njet-app-sticky-module
 # optional
 ./modules/njet-http-cluster-limit-conn-module
 # optional
@@ -109,13 +107,15 @@
 #optional
 ./modules/njet-helper-go-copilot-module
 #optional
+./modules/njet-stream-proto-server-module
+#optional
 ./modules/njet-stream-ws-module
 #optional
 #./modules/njet-python-module
 #optional
-./modules/njet-http-dyn-upstream-api-module
-#optional
 ./modules/njet-http-dyn-upstream-module
+#optional
+./modules/njet-http-dyn-upstream-api-module
 #optional
 ./modules/njet-http-shm-status-module
 #optional
@@ -125,6 +125,32 @@
 #optional
 ./modules/njet-http-shm-api-module
 #optional
-./modules/njet-http-upstream-member-module
+./modules/njet-http-upstream-api-module
 #optional
 ./modules/njet-stream-ws2mqtt-tcc-module
+#optional
+./modules/njet-stream-dyn-server-module
+#optional
+./modules/njet-stream-dyn-server-api-module
+#optional
+./modules/njet-stream-dyn-upstream-module
+#optional
+./modules/njet-stream-dyn-upstream-api-module
+#optional
+./modules/njet-stream-dyn-lua-module
+#optional
+./modules/njet-stream-dyn-proxy-pass-module
+#optional
+./modules/njet-stream-dyn-ssl-module
+#optional
+./modules/njet-stream-ssl-api-module
+# optional
+./modules/njet-openapi-parser-module
+#optional
+./modules/njet-health-check-http-module
+#optional
+./modules/njet-health-check-tcp-module
+#optional
+./modules/njet-health-check-udp-module
+#optional
+./modules/njet-health-check-mysql-module

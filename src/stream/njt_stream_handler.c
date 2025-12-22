@@ -148,7 +148,6 @@ njt_stream_init_connection(njt_connection_t *c)
     c->data = s;
 
     cscf = njt_stream_get_module_srv_conf(s, njt_stream_core_module);
-
     njt_set_connection_log(c, cscf->error_log);
 
     len = njt_sock_ntop(c->sockaddr, c->socklen, text, NJT_SOCKADDR_STRLEN, 1);
@@ -186,7 +185,9 @@ njt_stream_init_connection(njt_connection_t *c)
         njt_stream_close_connection(c);
         return;
     }
-
+#if(NJT_STREAM_DYNAMIC_SERVER)
+    njt_stream_set_virtual_server(s,cscf);
+#endif
     tp = njt_timeofday();
     s->start_sec = tp->sec;
     s->start_msec = tp->msec;
@@ -321,6 +322,11 @@ njt_stream_finalize_session(njt_stream_session_t *s, njt_uint_t rc)
 
     njt_stream_log_session(s);
 
+#if (NJT_STREAM_FTP_PROXY)
+    //need free all data port map info of current session
+    njt_stream_ftp_proxy_cleanup(s);
+#endif
+
     njt_stream_close_connection(s->connection);
 }
 
@@ -364,11 +370,6 @@ njt_stream_close_connection(njt_connection_t *c)
 
 #if (NJT_STAT_STUB)
     (void) njt_atomic_fetch_add(njt_stat_active, -1);
-#endif
-
-#if (NJT_STREAM_FTP_PROXY)
-    //need free all data port map info of current session
-    njt_stream_ftp_proxy_cleanup((njt_stream_session_t *)c->data);
 #endif
 
     pool = c->pool;

@@ -9,8 +9,11 @@
 #include <njt_config.h>
 #include <njt_core.h>
 #include <njt_stream.h>
-
-
+#include <njt_stream_util.h>
+#if (NJT_STREAM_DYNAMIC_SERVER)
+#include <njt_stream_dyn_server_module.h>
+    njt_module_t *njt_stream_dyn_server_module_pt;
+#endif
 static njt_uint_t njt_stream_preread_can_peek(njt_connection_t *c);
 static njt_int_t njt_stream_preread_peek(njt_stream_session_t *s,
     njt_stream_phase_handler_t *ph);
@@ -706,7 +709,9 @@ njt_stream_core_create_srv_conf(njt_conf_t *cf)
     cscf->tcp_nodelay = NJT_CONF_UNSET;
     cscf->preread_buffer_size = NJT_CONF_UNSET_SIZE;
     cscf->preread_timeout = NJT_CONF_UNSET_MSEC;
-
+#if (NJT_STREAM_DYNAMIC_SERVER)
+    cscf->pool=cf->pool;  // cx 澶勭悊鍐呭瓨閲婃斁
+#endif
     return cscf;
 }
 
@@ -768,6 +773,9 @@ njt_stream_core_merge_srv_conf(njt_conf_t *cf, void *parent, void *child)
 #endif
         sn->server = conf;
         njt_str_set(&sn->name, "");
+#if (NJT_STREAM_DYNAMIC_SERVER) 
+        sn->full_name = sn->name;
+#endif
     }
 
     sn = conf->server_names.elts;
@@ -815,6 +823,27 @@ njt_stream_core_server(njt_conf_t *cf, njt_command_t *cmd, void *conf)
     njt_stream_conf_ctx_t        *ctx, *stream_ctx;
     njt_stream_core_srv_conf_t   *cscf, **cscfp;
     njt_stream_core_main_conf_t  *cmcf;
+
+#if (NJT_STREAM_DYNAMIC_SERVER)
+    njt_int_t rc;
+    njt_pool_t *old_server_pool,*new_server_pool,*old_server_temp_pool;
+    old_server_pool = cf->pool;
+    old_server_temp_pool = cf->temp_pool;
+    new_server_pool = njt_create_dynamic_pool(NJT_MIN_POOL_SIZE, njt_cycle->log);
+    if (new_server_pool == NULL) {
+        return NJT_CONF_ERROR;
+    }
+    rc = njt_sub_pool(cf->cycle->pool,new_server_pool);
+    if (rc != NJT_OK) {
+        njt_destroy_pool(new_server_pool);
+        return NJT_CONF_ERROR;
+    }
+    cf->pool = new_server_pool;
+    cf->temp_pool = new_server_pool;
+
+     njt_log_error(NJT_LOG_DEBUG, njt_cycle->log, 0,
+                          "create server=%p",cf->pool);
+#endif
 
     ctx = njt_pcalloc(cf->pool, sizeof(njt_stream_conf_ctx_t));
     if (ctx == NULL) {
@@ -874,6 +903,13 @@ njt_stream_core_server(njt_conf_t *cf, njt_command_t *cmd, void *conf)
 
     *cf = pcf;
 
+#if (NJT_STREAM_DYNAMIC_SERVER)
+    cscf->pool = new_server_pool;
+    cscf->dynamic = cf->dynamic;
+    cscf->dynamic_status = cf->dynamic;  // 1 
+    cf->pool = old_server_pool;
+    cf->temp_pool = old_server_temp_pool;
+#endif
     if (rv == NJT_CONF_OK && !cscf->listen) {
         njt_log_error(NJT_LOG_EMERG, cf->log, 0,
                       "no \"listen\" is defined for server in %s:%ui",
@@ -1296,7 +1332,10 @@ njt_stream_core_server_name(njt_conf_t *cf, njt_command_t *cmd, void *conf)
     njt_str_t                 *value;
     njt_uint_t                 i;
     njt_stream_server_name_t  *sn;
-
+#if (NJT_STREAM_DYNAMIC_SERVER) 
+     njt_str_t                 *ori_value;
+      ori_value = cf->ori_args->elts;
+#endif
     value = cf->args->elts;
 
     for (i = 1; i < cf->args->nelts; i++) {
@@ -1316,7 +1355,13 @@ njt_stream_core_server_name(njt_conf_t *cf, njt_command_t *cmd, void *conf)
                                "server name \"%V\" has suspicious symbols",
                                &value[i]);
         }
-
+#if (NJT_STREAM_DYNAMIC_SERVER) 
+         if(cf->dynamic == 1  && cscf->server_names.nelts >= 1) {
+             njt_conf_log_error(NJT_LOG_EMERG, cf, 0,
+                               "dynamic server only support one name!");
+            return NJT_CONF_ERROR;
+        }
+#endif
         sn = njt_array_push(&cscf->server_names);
         if (sn == NULL) {
             return NJT_CONF_ERROR;
@@ -1329,9 +1374,14 @@ njt_stream_core_server_name(njt_conf_t *cf, njt_command_t *cmd, void *conf)
 
         if (njt_strcasecmp(value[i].data, (u_char *) "$hostname") == 0) {
             sn->name = cf->cycle->hostname;
-
+#if (NJT_STREAM_DYNAMIC_SERVER) 
+        sn->full_name = sn->name;
+#endif
         } else {
             sn->name = value[i];
+#if (NJT_STREAM_DYNAMIC_SERVER) 
+        sn->full_name = ori_value[i];
+#endif
         }
 
         if (value[i].data[0] != '~') {
@@ -1407,3 +1457,80 @@ njt_stream_core_resolver(njt_conf_t *cf, njt_command_t *cmd, void *conf)
 
     return NJT_CONF_OK;
 }
+void njt_stream_server_delete_dyn_var(njt_stream_core_srv_conf_t *cscf)
+{
+	return;
+}
+
+static void njt_stream_core_free_srv_ctx(void *data) {
+    njt_stream_session_t *s;
+    njt_stream_dyn_server_ctx_t *ctx;
+    s = data;
+    if(s->upstream != NULL && s->upstream->upstream != NULL){
+           njt_stream_upstream_del((njt_cycle_t  *)njt_cycle,s->upstream->upstream);
+    }
+    ctx = njt_stream_get_module_ctx(s, (*njt_stream_dyn_server_module_pt));
+    if(ctx && ctx->queue.prev) {
+        njt_queue_remove(&ctx->queue);
+        ctx->queue.prev = NULL;
+    }
+    
+}
+
+void njt_stream_set_virtual_server(njt_stream_session_t *s,njt_stream_core_srv_conf_t *cscf)
+{
+#if !(NJT_STREAM_DYNAMIC_SERVER)
+    if(cscf == NULL) {
+        return;
+    }
+    s->srv_conf  = cscf->ctx->srv_conf;
+    return;
+#endif
+    njt_pool_cleanup_t *cln;
+    njt_stream_dyn_server_ctx_t *ctx;
+    njt_stream_dyn_server_srv_t *dyn_srv;
+    njt_connection_t            *c = s->connection;
+
+    if(cscf == NULL) {
+        return;
+    }
+    s->srv_conf = cscf->ctx->srv_conf;
+    if(njt_stream_dyn_server_module_pt == NULL || njt_stream_dyn_server_module_pt->ctx_index == NJT_CONF_UNSET_UINT) {
+        return;
+    }
+    ctx = njt_stream_get_module_ctx(s, (*njt_stream_dyn_server_module_pt));
+    if (cscf->dynamic == 0)
+    {
+        if(ctx != NULL && ctx->queue.prev) {
+            njt_queue_remove(&ctx->queue);
+            ctx->queue.prev = NULL;
+        }
+        goto end;
+    }
+    if(ctx == NULL) {
+       ctx = njt_pcalloc(c->pool, sizeof(njt_stream_dyn_server_ctx_t)); 
+       if(ctx == NULL) {
+            goto end;
+       }
+       ctx->s = s;
+       njt_stream_set_ctx(s,ctx,(*njt_stream_dyn_server_module_pt));
+    } else {
+        if (ctx->queue.prev) {
+            njt_queue_remove(&ctx->queue);
+            ctx->queue.prev = NULL;
+        }
+    }
+    dyn_srv = njt_stream_get_module_srv_conf(s,(*njt_stream_dyn_server_module_pt));
+    njt_queue_insert_tail(dyn_srv->session_queue,&ctx->queue);
+    
+    cln = njt_pool_cleanup_add(c->pool,sizeof(njt_stream_session_t *));
+    if (cln == NULL) {
+        goto end;
+    }
+    cscf->ref_count++;
+    cln->data = s;
+    cln->handler = njt_stream_core_free_srv_ctx;
+end:
+    return;
+}
+

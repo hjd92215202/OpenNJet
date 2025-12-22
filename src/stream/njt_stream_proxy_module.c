@@ -41,7 +41,7 @@ static void njt_stream_proxy_process(njt_stream_session_t *s,
 static njt_int_t njt_stream_proxy_test_finalize(njt_stream_session_t *s,
     njt_uint_t from_upstream);
 static void njt_stream_proxy_next_upstream(njt_stream_session_t *s);
-static void njt_stream_proxy_finalize(njt_stream_session_t *s, njt_uint_t rc);
+void njt_stream_proxy_finalize(njt_stream_session_t *s, njt_uint_t rc);
 static u_char *njt_stream_proxy_log_error(njt_log_t *log, u_char *buf,
     size_t len);
 
@@ -606,6 +606,11 @@ found:
     }
 
     u->upstream = uscf;
+#if (NJT_STREAM_ADD_DYNAMIC_UPSTREAM)
+    u->upstream->client_count++;
+     njt_log_debug2(NJT_LOG_DEBUG_STREAM, c->log, 0,
+                          "u->upstream=%V,client_count=%d", &u->upstream->host,u->upstream->client_count);
+#endif
 
 #if (NJT_STREAM_SSL)
     u->ssl_name = uscf->host;
@@ -2247,7 +2252,7 @@ njt_stream_proxy_next_upstream(njt_stream_session_t *s)
 }
 
 
-static void
+void
 njt_stream_proxy_finalize(njt_stream_session_t *s, njt_uint_t rc)
 {
     njt_uint_t              state;
@@ -2262,6 +2267,13 @@ njt_stream_proxy_finalize(njt_stream_session_t *s, njt_uint_t rc)
     if (u == NULL) {
         goto noupstream;
     }
+#if (NJT_STREAM_ADD_DYNAMIC_UPSTREAM)
+    if(u->upstream != NULL) {
+        u->upstream->client_count--;
+        njt_log_debug2(NJT_LOG_DEBUG_HTTP, s->connection->log, 0,
+                    "finalize stream upstream=%V, client_count: %i", &u->upstream->host,u->upstream->client_count);
+    }
+#endif
 
     if (u->resolved && u->resolved->ctx) {
         njt_resolve_name_done(u->resolved->ctx);
@@ -2774,7 +2786,9 @@ njt_stream_proxy_pass(njt_conf_t *cf, njt_command_t *cmd, void *conf)
         }
 
         *pscf->upstream_value = cv;
-
+#if(NJT_STREAM_DYN_PROXY_PASS)
+   pscf->ori_url = *url;
+#endif
         return NJT_CONF_OK;
     }
 
@@ -2787,7 +2801,9 @@ njt_stream_proxy_pass(njt_conf_t *cf, njt_command_t *cmd, void *conf)
     if (pscf->upstream == NULL) {
         return NJT_CONF_ERROR;
     }
-
+#if(NJT_STREAM_DYN_PROXY_PASS)
+   pscf->ori_url = *url;
+#endif
     return NJT_CONF_OK;
 }
 

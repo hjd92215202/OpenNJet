@@ -137,6 +137,9 @@ njt_http_upstream_get_least_conn_peer(njt_peer_connection_t *pc, void *data)
          peer;
          peer = peer->next, i++)
     {
+        if(peer->del_pending || rrp->number < i+1) { //by zyg
+            break;
+        }
         n = i / (8 * sizeof(uintptr_t));
         m = (uintptr_t) 1 << i % (8 * sizeof(uintptr_t));
 
@@ -194,6 +197,10 @@ njt_http_upstream_get_least_conn_peer(njt_peer_connection_t *pc, void *data)
              peer;
              peer = peer->next, i++)
         {
+            if (peer->del_pending || rrp->number < i + 1) //by zyg
+            {
+                break;
+            }
             n = i / (8 * sizeof(uintptr_t));
             m = (uintptr_t) 1 << i % (8 * sizeof(uintptr_t));
 
@@ -266,10 +273,13 @@ failed:
                        "get least conn peer, backup servers");
 
         rrp->peers = peers->next;
-
-        n = (rrp->peers->number + (8 * sizeof(uintptr_t) - 1))
-                / (8 * sizeof(uintptr_t));
-
+        if (rrp->number < rrp->peers->number)  //by zyg. 以小的去初始化。
+        {
+            n = (rrp->number + (8 * sizeof(uintptr_t) - 1)) / (8 * sizeof(uintptr_t));
+        } else {
+            n = (rrp->peers->number + (8 * sizeof(uintptr_t) - 1))
+                    / (8 * sizeof(uintptr_t));
+        }
         for (i = 0; i < n; i++) {
             rrp->tried[i] = 0;
         }

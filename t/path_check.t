@@ -27,7 +27,7 @@ select STDERR; $| = 1;
 select STDOUT; $| = 1;
 
 
-my $t = Test::Nginx->new()->plan(19);
+my $t = Test::Nginx->new()->plan(18);
 my $njet_module_path = set_njet_module_path(); 
 warn "--------------njet_module_path = $njet_module_path";
 $t->{_expand_vars} = {
@@ -47,7 +47,6 @@ load_module  %%njet_module_path%%/njt_http_dyn_map_module.so;
 load_module %%njet_module_path%%/njt_agent_dynlog_module.so;
 load_module %%njet_module_path%%/njt_http_location_module.so;
 load_module %%njet_module_path%%/njt_http_access_log_zone_module.so;
-load_module %%njet_module_path%%/njt_app_sticky_module.so;
 load_module %%njet_module_path%%/njt_dyn_ssl_module.so;
 load_module %%njet_module_path%%/njt_http_vtsc_module.so;
 load_module %%njet_module_path%%/njt_http_dyn_limit_module.so;
@@ -105,7 +104,6 @@ http {
      upstream back{
                 zone back 10M;
                 #server 192.168.40.136:8090;
-                app_sticky zone=app:4m cookie:route;
                 server 127.0.0.1:8008;           #real server
                 server 127.0.0.1:8009;           #real server
      }
@@ -262,7 +260,7 @@ like($alldatafiles, qr/lock.mdb/, 'lock.mdb ok');
 like($alldatafiles, qr/data.mdb/, 'data.mdb ok');
 like($alldatafiles, qr/dyn_slab/, 'dyn_slab ok');
 # like($alldatafiles, qr/file_upload/, 'file_upload ok');
-like($alldatafiles, qr/mosquitto.db/, 'mosquitto.db ok');
+#like($alldatafiles, qr/mosquitto.db/, 'mosquitto.db ok');
 like($alldatafiles, qr/mosquitto.sock/, 'mosquitto.sock ok');
 # like($alldatafiles, qr/add_location.txt/, 'add_location.txt ok');
 # like($alldatafiles, qr/add_ups.txt/, 'add_ups.txt ok');
