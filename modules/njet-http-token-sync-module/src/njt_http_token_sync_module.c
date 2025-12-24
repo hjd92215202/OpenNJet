@@ -32,7 +32,7 @@
 typedef struct
 {
     u_char					color;
-    u_short 			    len;
+    njt_uint_t 			    len;
 	njt_str_t 				addtional_data;		//addional data
 	njt_uint_t				ori_ttl;    //orignal expire time, sec
 	njt_uint_t				dyn_ttl;    //dynamic expire time, sec
