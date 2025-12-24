@@ -19,7 +19,7 @@
 #define TOKEN_SYNC_DEFAULT_CLEAN_TIME  	5000
 #define TOKEN_SYNC_DATA_CNT  	4
 #define TOKEN_SYNC_MAX_ZONE  	30
-#define TOKEN_SYNC_MAX_TOKEN_LEN        100
+#define TOKEN_SYNC_MAX_TOKEN_LEN        512
 #define TOKEN_SYNC_MAX_ADDITIONAL_DATA_LEN        512
 
 #define TOKEN_SYNC_KEYS_KEY 	"token_sync_keys"
@@ -64,7 +64,7 @@ typedef struct {
 	njt_str_t 				zone_name;
 	njt_msec_t				sync_time;
 	njt_msec_t				clean_time;
-	njt_int_t 				max_key_len;
+	size_t 					max_key_len;
 	njt_http_token_sync_ctx_t 	*ctx;
 } njt_http_token_sync_main_conf_t;
 
@@ -397,10 +397,17 @@ static void http_token_sync_expire_node(njt_http_token_sync_main_conf_t *tscf)
 	njt_http_token_sync_rb_node_t 	*lr;
 	njt_str_t						token;
 	njt_msec_t  					checkpoint_stamp = njt_current_msec;
-	u_char 							tmp_key[TOKEN_SYNC_TEMP_KEY_LEN + TOKEN_SYNC_KEY_PREFIX_LEN];
+	u_char 							*tmp_key;
 	njt_str_t						tmp_str_key;
 	njt_flag_t                      has_expired = 0;
 	njt_http_token_sync_ctx_t		*ctx = tscf->ctx;
+
+
+	tmp_key = njt_calloc(TOKEN_SYNC_KEY_PREFIX_LEN + tscf->max_key_len, njt_cycle->log);
+	if(tmp_key == NULL){
+		njt_log_error(NJT_LOG_DEBUG, njt_cycle->log, 0, "token expire malloc tmpkey fail");
+		return;
+	}
 
 	njt_memmove(tmp_key, TOKEN_SYNC_KEY_PREFIX, TOKEN_SYNC_KEY_PREFIX_LEN);
 	tmp_str_key.data = tmp_key;
@@ -447,6 +454,8 @@ static void http_token_sync_expire_node(njt_http_token_sync_main_conf_t *tscf)
 	if(has_expired){
 		njt_http_token_keys_kv_set(ctx);
 	}
+
+	njt_free(tmp_key);
 }
 
 
@@ -593,26 +602,26 @@ static void njt_http_token_sync_sync_data( njt_http_token_sync_ctx_t* ctx,
 // 	static int test_set = 1;
 // 	njt_str_t token, value1, retvalue;
 // 	u_char *p;
-// 	u_char tmptoken[256];
+// 	u_char tmptoken[2500];
 
 // 	njt_str_set(&value1, "acde");
 // 	if(test_set > 0){
 // 		test_set--;
-// 		p = njt_snprintf(tmptoken, 256, "1111");
+// 		p = njt_snprintf(tmptoken, 2500, "thequickbrownfoxjumpsoverthelazydogthissentencecontainseveryletteroftheenglishalphabetandisoftenusedfortypingpracticetestingfontsanddemonstratingtextrenderingbeyonditsutilityitevokesvividimageryanimblefoxinmidleapasundrenchedmeadowandaDogtoOcontenttostirlanguageinallitsformsbridgesthoughtandexpressionallowinghumanstoshareideasacrosstimeandspacefromancientscrollstodigitalscreenswrittenwordspreserveknowledgesparkimaginationandfosterconnectioneveninanageofalgorithmsandartificialintelligencethepowerofawellchosenphraseremainsundiminishedclarityrhythmandprecisionelevateordinarysentencesintomemorableprosewriterslaboroversyntaxnotoutofpedantrybutbecausenuancemattersbecauseasinglewordcanaltermeaningemotionorintentreadingthenbecomesanactofcollaborationbetweenauthorandaudienceeachbringingtheirownexperiencestothetextinlibrariesandonstreetcornersstoriesunfoldsilentlyyetresonantlytheyremindusthatwearenotaloneinourjoysfearsorquestionssowecontinuetoreadtowritetorevisenotmerelytocommunicatebuttounderstandandsometimesunderstandingbeginswithsomethingassimpleasafoxadogandafieldbathedingoldenlightthoughbriefsuchmomentscapturetheessenceofnarrativetransformationthroughattentioneverycharactertypedeverypageturnedisasmallrebellionagainstforgettingthuslanguageenduresthequickbrownfoxjumpsoverthelazydogthissentencecontainseveryletteroftheenglishalphabetandisoftenusedfortypingpracticetestingfontsanddemonstratingtextrenderingbeyonditsutilityitevokesvividimageryanimblefoxinmidleapasundrenchedmeadowandaDogtoOcontenttostirlanguageinallitsformsbridgesthoughtandexpressionallowinghumanstoshareideasacrosstimeandspacefromancientscrollstodigitalscreenswrittenwordspreserveknowledgesparkimaginationandfosterconnectioneveninanageofalgorithmsandartificialintelligencethepowerofawellchosenphraseremainsundiminishedclarityrhythmandprecisionelevateordinarysentencesintomemorableprosewriterslaboroversyntaxnotoutofpedantrybutbecausenuancemattersbecauseasinglewordcanaltermeaningemotionorintentreadingthenbecomesanactofcollaborationbetweenauthorandaudienceeachbringingtheirownexperiencestothetextinlibrariesandonstreetcornersstoriesunfoldsilentlyyetresonantlytheyremindusthatwearenotaloneinourjoysfearsorquestionssowecontinuetoreadtowritetorevisenotmerelytocommunicatebuttounderstandandsometimesunderstandingbeginswithsomethingassimpleasafoxadogandafieldbathedingoldenlightthoughbriefsuchmomentscapturetheessenceofnarrativetransformationthroughattentioneverycharactertypedeverypageturnedisasmallrebellionagainstforgettingthuslanguageenduresnotasastaticartifactbutasalivingcurrentflowingfromonemindtoanothercarryingwithittheweightandwonderofhumanexperiencenotasastaticartifactbutasalivingcurrentflowingfromonemindtoanothercarryingwithittheweightandwonderofhumanexperience");
 // 		token.data = tmptoken;
 // 		token.len = p - tmptoken;
 
 
-// 			// if(NJT_OK != njt_token_set(&token, &value1, 600)){
-// 			// 	njt_log_error(NJT_LOG_ERR, njt_cycle->log, 0, " set token:%V value1:%V error", &token, &value1);
-// 			// }else{
-// 			// 	njt_log_error(NJT_LOG_ERR, njt_cycle->log, 0, " set token:%V value1:%V ok", &token, &value1);
-// 			// }
+// 			if(NJT_OK != njt_token_set(&token, &value1, 600)){
+// 				njt_log_error(NJT_LOG_ERR, njt_cycle->log, 0, " set token error, key:%V value1:%V", &token, &value1);
+// 			}else{
+// 				njt_log_error(NJT_LOG_ERR, njt_cycle->log, 0, " set token ok, key:%V value1:%V", &token, &value1);
+// 			}
 
 // 			if(NJT_OK != njt_token_get(&token, &retvalue)){
-// 				njt_log_error(NJT_LOG_ERR, njt_cycle->log, 0, " get token:%V error", &token);
+// 				njt_log_error(NJT_LOG_ERR, njt_cycle->log, 0, " get token error, key:%V", &token);
 // 			}else{
-// 				njt_log_error(NJT_LOG_ERR, njt_cycle->log, 0, " get token:%V ok, value:%V", &token, &retvalue);
+// 				njt_log_error(NJT_LOG_ERR, njt_cycle->log, 0, " get token ok, key:%V value:%V", &token, &retvalue);
 // 			}
 
 // 		njt_str_set(&value1, "efgh");
@@ -620,26 +629,26 @@ static void njt_http_token_sync_sync_data( njt_http_token_sync_ctx_t* ctx,
 // 		token.data = tmptoken;
 // 		token.len = p - tmptoken;
 
-// 			// 			if(NJT_OK != njt_token_set(&token, &value1, 600)){
-// 			// 	njt_log_error(NJT_LOG_ERR, njt_cycle->log, 0, " set token:%V value1:%V error", &token, &value1);
-// 			// }else{
-// 			// 	njt_log_error(NJT_LOG_ERR, njt_cycle->log, 0, " set token:%V value1:%V ok", &token, &value1);
-// 			// }
+// 						if(NJT_OK != njt_token_set(&token, &value1, 600)){
+// 				njt_log_error(NJT_LOG_ERR, njt_cycle->log, 0, " set token error, key:%V value1:%V", &token, &value1);
+// 			}else{
+// 				njt_log_error(NJT_LOG_ERR, njt_cycle->log, 0, " set token ok, key:%V value1:%V", &token, &value1);
+// 			}
 
 // 			if(NJT_OK != njt_token_get(&token, &retvalue)){
-// 				njt_log_error(NJT_LOG_ERR, njt_cycle->log, 0, " get token:%V error", &token);
+// 				njt_log_error(NJT_LOG_ERR, njt_cycle->log, 0, " get token error, key:%V", &token);
 // 			}else{
-// 				njt_log_error(NJT_LOG_ERR, njt_cycle->log, 0, " get token:%V ok, value:%V", &token, &retvalue);
+// 				njt_log_error(NJT_LOG_ERR, njt_cycle->log, 0, " get token ok, key:%V value:%V", &token, &retvalue);
 // 			}
 // 	}
 
-	// test_set--;
-	// // njt_str_null(&value);
-	// // if(NJT_OK != njt_token_get(&token, &value)){
-	// // 	njt_log_error(NJT_LOG_ERR, njt_cycle->log, 0, " get token:%V error", &token);
-	// // }else{
-	// // 	njt_log_error(NJT_LOG_ERR, njt_cycle->log, 0, " get token:%V ok, value:%V", &token, &value);
-	// // }
+// 	test_set--;
+// 	// njt_str_null(&value);
+// 	// if(NJT_OK != njt_token_get(&token, &value)){
+// 	// 	njt_log_error(NJT_LOG_ERR, njt_cycle->log, 0, " get token:%V error", &token);
+// 	// }else{
+// 	// 	njt_log_error(NJT_LOG_ERR, njt_cycle->log, 0, " get token:%V ok, value:%V", &token, &value);
+// 	// }
 // }
 
 static void http_token_sync_sync_handler(njt_event_t *ev)
@@ -901,7 +910,6 @@ static void njt_http_token_keys_reload_from_kv(njt_http_token_sync_ctx_t *ctx){
 	token_syncs_t			*token_keys;
 	njt_uint_t              i;
 	token_syncs_item_t 		*key_item;
-	u_char                  tmp_key[TOKEN_SYNC_TEMP_KEY_LEN];
 	njt_str_t               tmp_key_str;
 
 
@@ -928,9 +936,6 @@ static void njt_http_token_keys_reload_from_kv(njt_http_token_sync_ctx_t *ctx){
 			"token keys parse error when reload token from kv in function %s", __func__);
 		goto end;
 	}
-
-	njt_memmove(tmp_key, TOKEN_SYNC_KEY_PREFIX, TOKEN_SYNC_KEY_PREFIX_LEN);
-	tmp_key_str.data = tmp_key;
 
 	//list all keys and recover to zone
 	for (i = 0; i < token_keys->nelts; ++i) {
@@ -1046,10 +1051,16 @@ static njt_int_t njt_http_token_sync_update_node(njt_http_token_sync_main_conf_t
 	njt_msec_t  					update_stamp = njt_current_msec;
 	token_sync_t 					token_info;
 	uint32_t hash = njt_crc32_short(token.data, token.len);
-	u_char                          tmp_key[TOKEN_SYNC_TEMP_KEY_LEN + TOKEN_SYNC_KEY_PREFIX_LEN];
+	u_char                          *tmp_key = NULL;
 	njt_str_t                       tmp_key_str;
 	njt_http_token_sync_ctx_t 		*ctx = tscf->ctx;
 
+
+	tmp_key = (u_char *)njt_calloc(TOKEN_SYNC_KEY_PREFIX_LEN + token.len, njt_cycle->log);
+	if(tmp_key == NULL){
+		njt_log_error(NJT_LOG_ERR, njt_cycle->log, 0, "token sync malloc tmpkey fail");
+		return NJT_ERROR;
+	}
 
 	njt_memmove(tmp_key, TOKEN_SYNC_KEY_PREFIX, TOKEN_SYNC_KEY_PREFIX_LEN);
 	tmp_key_str.data = tmp_key;
@@ -1083,6 +1094,7 @@ static njt_int_t njt_http_token_sync_update_node(njt_http_token_sync_main_conf_t
 				njt_log_error(NJT_LOG_CRIT,ctx->log,0, "malloc failed in http_token_sync init tree, pos1");
 				njt_shmtx_unlock(&ctx->shpool->mutex);
 
+				free(tmp_key);
 				return NJT_ERROR;
 			}	
 			lr->addtional_data.len = addtional_data.len;
@@ -1093,13 +1105,9 @@ static njt_int_t njt_http_token_sync_update_node(njt_http_token_sync_main_conf_t
             njt_queue_insert_head(&ctx->sh->queue, &lr->queue);
 
 			//update kv
-			if(token.len > TOKEN_SYNC_TEMP_KEY_LEN){
-				njt_memmove(tmp_key + TOKEN_SYNC_KEY_PREFIX_LEN, token.data, TOKEN_SYNC_TEMP_KEY_LEN);
-				tmp_key_str.len = TOKEN_SYNC_TEMP_KEY_LEN + TOKEN_SYNC_KEY_PREFIX_LEN;
-			}else{
-				njt_memmove(tmp_key + TOKEN_SYNC_KEY_PREFIX_LEN, token.data, token.len);
-				tmp_key_str.len = token.len + TOKEN_SYNC_KEY_PREFIX_LEN;
-			}
+			njt_memmove(tmp_key + TOKEN_SYNC_KEY_PREFIX_LEN, token.data, token.len);
+			tmp_key_str.len = token.len + TOKEN_SYNC_KEY_PREFIX_LEN;
+
 			set_token_sync_token_key(&token_info, &tmp_key_str);
 			set_token_sync_token_value(&token_info, &addtional_data);
 			set_token_sync_last_seen(&token_info, lr->last_seen);
@@ -1111,7 +1119,7 @@ static njt_int_t njt_http_token_sync_update_node(njt_http_token_sync_main_conf_t
 		//update all kv keys
 		njt_http_token_keys_kv_set(ctx);
 		
-
+		free(tmp_key);
 		return NJT_OK;
 	}
 	njt_log_error(NJT_LOG_DEBUG, ctx->log,0, "no node token:%V addtional_data:%V",&token, &addtional_data);
@@ -1125,6 +1133,7 @@ static njt_int_t njt_http_token_sync_update_node(njt_http_token_sync_main_conf_t
        	njt_log_error(NJT_LOG_CRIT,ctx->log,0, "malloc failed in http_token_sync init tree, pos2");
     	njt_shmtx_unlock(&ctx->shpool->mutex);
 
+		free(tmp_key);
 		return NJT_ERROR;
    	} 
 
@@ -1149,6 +1158,7 @@ static njt_int_t njt_http_token_sync_update_node(njt_http_token_sync_main_conf_t
        	njt_log_error(NJT_LOG_CRIT,ctx->log,0, "malloc failed in http_token_sync init tree, pos3");
     	njt_shmtx_unlock(&ctx->shpool->mutex);
 
+		free(tmp_key);
 		return NJT_ERROR;
    	} 	
 	lr->addtional_data.len = addtional_data.len;
@@ -1163,13 +1173,9 @@ static njt_int_t njt_http_token_sync_update_node(njt_http_token_sync_main_conf_t
     njt_shmtx_unlock(&ctx->shpool->mutex);
 
 	//add to kv
-	if(token.len > TOKEN_SYNC_TEMP_KEY_LEN){
-		njt_memmove(tmp_key + TOKEN_SYNC_KEY_PREFIX_LEN, token.data, TOKEN_SYNC_TEMP_KEY_LEN);
-		tmp_key_str.len = TOKEN_SYNC_TEMP_KEY_LEN + TOKEN_SYNC_KEY_PREFIX_LEN;
-	}else{
-		njt_memmove(tmp_key + TOKEN_SYNC_KEY_PREFIX_LEN, token.data, token.len);
-		tmp_key_str.len = token.len + TOKEN_SYNC_KEY_PREFIX_LEN;
-	}
+	njt_memmove(tmp_key + TOKEN_SYNC_KEY_PREFIX_LEN, token.data, token.len);
+	tmp_key_str.len = token.len + TOKEN_SYNC_KEY_PREFIX_LEN;
+
 	set_token_sync_token_key(&token_info, &tmp_key_str);
 	set_token_sync_token_value(&token_info, &addtional_data);
 	set_token_sync_last_seen(&token_info, lr->last_seen);
@@ -1179,6 +1185,7 @@ static njt_int_t njt_http_token_sync_update_node(njt_http_token_sync_main_conf_t
 	//update all kv keys
 	njt_http_token_keys_kv_set(ctx);
 
+	free(tmp_key);
 	return NJT_OK;
 }
 
@@ -1329,6 +1336,8 @@ int njt_token_key_maxlen_set(njt_uint_t maxlen){
 	}
 
 	token_instance->max_key_len = maxlen;
+
+	return NJT_OK;
 }
 
 // int njt_token_del(njt_str_t *token){
