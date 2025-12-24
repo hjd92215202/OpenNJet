@@ -175,6 +175,7 @@ function _M.login(login_data)
     inputObj.nickname = login_data.username
 
     -- check local wether has user
+    local userid = 0
     local user_exist, userObj = userDao.getUserByName(inputObj.name)
     if not user_exist then
         -- if exists, then update local user info 
@@ -184,9 +185,11 @@ function _M.login(login_data)
             return false, nil, nil, nil
         end
 
-        njt.log(njt.INFO, "create user success")
+        userid = userObj.id
+        njt.log(njt.INFO, "create user success userid:", userObj.id)
     else
         -- if not exists, then create local user info
+        userid = userObj.id
         inputObj.id = userObj.id
         inputObj.email = userObj.email
         inputObj.mobile = userObj.mobile
@@ -239,16 +242,14 @@ function _M.login(login_data)
             return false, nil, nil, nil
         end
 
-        njt.log(njt.INFO, "get group name: ".. tostring(group_item))
-        njt.log(njt.INFO, "get group info: ".. tostring(groupObj))
         table.insert(inputGroupObj.groups, groupObj.id)
     end
 
-    inputGroupObj.id = userObj.id
+    inputGroupObj.id = userid
 
     local update_group_ok, msg = userDao.updateUserGroupRel(inputGroupObj)
     if not update_group_ok then
-        userDao.deleteUserById(userObj.id)
+        userDao.deleteUserById(userid)
         njt.log(njt.ERR, "udpate user group error")
         return false, nil, nil, nil
     end
