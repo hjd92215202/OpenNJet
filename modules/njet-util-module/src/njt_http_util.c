@@ -977,3 +977,34 @@ void njt_http_location_upstream_destroy(njt_http_core_loc_conf_t *clcf,njt_http_
 	
 	return;
 }
+ssize_t
+njt_write_n(njt_fd_t fd, void *buf, size_t n) {
+	ssize_t len,retlen,data_len;
+	u_char *p = buf;
+	njt_err_t  err;
+
+	retlen = 0;
+	data_len = n;
+	for(;;) {
+		len = njt_write_fd(fd,p,data_len);
+		if(len == data_len) {
+			retlen = retlen + data_len;
+			data_len = data_len - len;
+			break;
+		} else if(len < 0) {
+			err = njt_errno;
+			if (err == NJT_EINTR) {
+                continue;
+            }
+			break;
+		} else {
+			retlen = retlen + len;
+			p = p + len;
+			data_len = data_len - len;
+		}
+	}
+	if(data_len != 0) {
+		njt_log_error(NJT_LOG_CRIT, njt_cycle->log, 0, "njt_write_n error!");
+	}
+	return retlen;
+}
