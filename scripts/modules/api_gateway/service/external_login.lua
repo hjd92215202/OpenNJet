@@ -238,6 +238,9 @@ function _M.login(login_data)
             njt.log(njt.ERR, "get group error: ".. group_item)
             return false, nil, nil, nil
         end
+
+        njt.log(njt.INFO, "get group name: ".. tostring(group_item))
+        njt.log(njt.INFO, "get group info: ".. tostring(groupObj))
         table.insert(inputGroupObj.groups, groupObj.id)
     end
 
