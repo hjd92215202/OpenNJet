@@ -124,14 +124,14 @@ static njt_int_t njt_http_dyn_add_map(njt_pool_t  *pool,httpmap_maps_item_t *ite
     //njt_http_map_ori_conf_item_t *ori_conf_item;
 
     rc = NJT_ERROR;    
-    map_full_file.len = njt_cycle->log_prefix.len + map_path.len + 50;//  workid_add_location.txt
+    map_full_file.len = njt_cycle->log_prefix.len + map_path.len + 128;//  workid_add_location.txt
     map_full_file.data = njt_pcalloc(pool, map_full_file.len);
     if(map_full_file.data == NULL) {
         rc = NJT_ERROR;
 		goto end;
     }
 
-    p = njt_snprintf(map_full_file.data, map_full_file.len, "%Vlogs/%d_%d_%V", &njt_cycle->log_prefix, njt_process, njt_worker,
+    p = njt_snprintf(map_full_file.data, map_full_file.len, "%Vlogs/%d_%d_%d_%P_%V", &njt_cycle->log_prefix, njt_process, njt_worker,njt_is_privileged_agent,njt_pid,
                         &map_path);
     map_full_file.len = p - map_full_file.data;
     fd = njt_open_file(map_full_file.data, NJT_FILE_CREATE_OR_OPEN | NJT_FILE_RDWR, NJT_FILE_TRUNCATE,
@@ -165,7 +165,7 @@ static njt_int_t njt_http_dyn_add_map(njt_pool_t  *pool,httpmap_maps_item_t *ite
     msg = buffer;
     msg.len = p - buffer.data;
 
-    rlen = njt_write_fd(fd, msg.data,msg.len);
+    rlen = njt_write_n(fd, msg.data,msg.len);
     if(rlen < 0) {
         rc = NJT_ERROR;
 		goto end;
@@ -196,7 +196,7 @@ static njt_int_t njt_http_dyn_add_map(njt_pool_t  *pool,httpmap_maps_item_t *ite
         p = njt_snprintf(buffer.data,buffer.len, "%V %V;\n",&value[0],&value[1]);
         msg = buffer;
         msg.len = p - buffer.data;
-        rlen = njt_write_fd(fd, msg.data,msg.len);
+        rlen = njt_write_n(fd, msg.data,msg.len);
         if(rlen < 0) {
             rc = NJT_ERROR;
             goto end;
@@ -205,7 +205,7 @@ static njt_int_t njt_http_dyn_add_map(njt_pool_t  *pool,httpmap_maps_item_t *ite
     njt_str_set(&msg,"}\n");
     
     
-    rlen = njt_write_fd(fd, msg.data,msg.len);
+    rlen = njt_write_n(fd, msg.data,msg.len);
     if(rlen < 0) {
         rc = NJT_ERROR;
         goto end;
@@ -230,6 +230,10 @@ static njt_int_t njt_http_dyn_add_map(njt_pool_t  *pool,httpmap_maps_item_t *ite
     conf.cmd_type = NJT_HTTP_MAIN_CONF;
     conf.dynamic = 1;
     rv = njt_conf_parse(&conf, &map_full_file);
+    if (njt_delete_file(map_full_file.data) == NJT_FILE_ERROR) {
+                njt_log_error(NJT_LOG_EMERG, njt_cycle->log, njt_socket_errno,
+                              njt_delete_file_n " %s failed", map_full_file.data);
+    }
     if(rv != NULL) {
         //error
         njt_log_error(NJT_LOG_ERR, njt_cycle->log, 0, "http_dyn_map error ");
@@ -242,6 +246,13 @@ static njt_int_t njt_http_dyn_add_map(njt_pool_t  *pool,httpmap_maps_item_t *ite
 end:
  if (fd != NJT_INVALID_FILE) {
         njt_close_file(fd); 
+    }
+    if(map_full_file.data != NULL) {
+        if (njt_delete_file(map_full_file.data) == NJT_FILE_ERROR)
+        {
+            njt_log_error(NJT_LOG_EMERG, njt_cycle->log, njt_socket_errno,
+                          njt_delete_file_n " %s failed", map_full_file.data);
+        }
     }
     return rc;
 }

@@ -2751,7 +2751,7 @@ njt_http_upstream_state_save(njt_http_upstream_member_request_topic *r,
 						 peer_data->down ? "down" : "",
 						 peer_data->max_fails, peer_data->fail_timeout, peer_data->slow_start, &out_msg);
 		}
-		len = njt_write_fd(fd, server_info, njt_strlen(server_info));
+		len = njt_write_n(fd, server_info, njt_strlen(server_info));
 		if (len != njt_strlen(server_info))
 		{
 			njt_log_error(NJT_LOG_ALERT, njt_cycle->log, 0,
@@ -2804,7 +2804,7 @@ njt_http_upstream_state_save(njt_http_upstream_member_request_topic *r,
 							 peer_data->down ? "down" : "",
 							 peer_data->max_fails, peer_data->fail_timeout, peer_data->slow_start, &out_msg);
 			}
-			len = njt_write_fd(fd, server_info, njt_strlen(server_info));
+			len = njt_write_n(fd, server_info, njt_strlen(server_info));
 			if (len != njt_strlen(server_info))
 			{
 				njt_log_error(NJT_LOG_ALERT, njt_cycle->log, 0,
@@ -2857,7 +2857,7 @@ njt_http_upstream_state_save(njt_http_upstream_member_request_topic *r,
 						 peer_data->max_fails, peer_data->fail_timeout, peer_data->slow_start, &out_msg, peer_data->set_backup > 0 ? "backup" : "");
 		}
 
-		len = njt_write_fd(fd, server_info, njt_strlen(server_info));
+		len = njt_write_n(fd, server_info, njt_strlen(server_info));
 		if (len != njt_strlen(server_info))
 		{
 			njt_log_error(NJT_LOG_ALERT, njt_cycle->log, 0,
@@ -2902,7 +2902,7 @@ njt_http_upstream_state_save(njt_http_upstream_member_request_topic *r,
 						 json_peer.down ? "down" : "",
 						 json_peer.max_fails, json_peer.fail_timeout, json_peer.slow_start, &out_msg, json_peer.backup > 0 ? "backup" : "");
 		}
-		len = njt_write_fd(fd, server_info, njt_strlen(server_info));
+		len = njt_write_n(fd, server_info, njt_strlen(server_info));
 		if (len != njt_strlen(server_info))
 		{
 			njt_log_error(NJT_LOG_ALERT, njt_cycle->log, 0,
@@ -3872,7 +3872,7 @@ njt_stream_upstream_state_save(njt_http_upstream_member_request_topic *r,
 					 peer_data->down ? "down" : "",
 					 peer_data->max_fails, peer_data->fail_timeout, peer_data->slow_start,&out_msg);
 
-		len = njt_write_fd(fd, server_info, njt_strlen(server_info));
+		len = njt_write_n(fd, server_info, njt_strlen(server_info));
 		if (len == -1)
 		{
 			njt_log_error(NJT_LOG_ALERT, njt_cycle->log, 0,
@@ -3918,7 +3918,7 @@ njt_stream_upstream_state_save(njt_http_upstream_member_request_topic *r,
 						 peer_data->down ? "down" : "",
 						 peer_data->max_fails, peer_data->fail_timeout, peer_data->slow_start,&out_msg);
 
-			len = njt_write_fd(fd, server_info, njt_strlen(server_info));
+			len = njt_write_n(fd, server_info, njt_strlen(server_info));
 			if (len == -1)
 			{
 				njt_log_error(NJT_LOG_ALERT, njt_cycle->log, 0,
@@ -3961,7 +3961,7 @@ njt_stream_upstream_state_save(njt_http_upstream_member_request_topic *r,
 					 peer_data->down ? "down" : "",
 					 peer_data->max_fails, peer_data->fail_timeout, peer_data->slow_start, &out_msg,peer_data->set_backup > 0 ? "backup" : "");
 
-		len = njt_write_fd(fd, server_info, njt_strlen(server_info));
+		len = njt_write_n(fd, server_info, njt_strlen(server_info));
 		if (len == -1)
 		{
 			njt_log_error(NJT_LOG_ALERT, njt_cycle->log, 0,
@@ -3997,7 +3997,7 @@ njt_stream_upstream_state_save(njt_http_upstream_member_request_topic *r,
 					 json_peer.down ? "down" : "",
 					 json_peer.max_fails, json_peer.fail_timeout, json_peer.slow_start, &out_msg,json_peer.backup > 0 ? "backup" : "");
 
-		len = njt_write_fd(fd, server_info, njt_strlen(server_info));
+		len = njt_write_n(fd, server_info, njt_strlen(server_info));
 		if (len == -1)
 		{
 			njt_log_error(NJT_LOG_ALERT, njt_cycle->log, 0,
