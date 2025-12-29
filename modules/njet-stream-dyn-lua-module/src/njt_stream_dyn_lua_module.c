@@ -22,6 +22,10 @@ extern njt_int_t njt_stream_lua_preread_handler_inline(njt_stream_lua_request_t 
 extern u_char *njt_stream_lua_digest_hex(u_char *dest, const u_char *buf, int buf_len);
 extern njt_int_t njt_stream_lua_balancer_handler_inline(njt_stream_lua_request_t *r,
     njt_stream_lua_srv_conf_t *lscf, lua_State *L);
+extern njt_int_t njt_stream_lua_balancer_init(njt_conf_t *cf,
+    njt_stream_upstream_srv_conf_t *us);
+extern njt_int_t njt_stream_lua_balancer_init_peer(njt_stream_session_t *s,
+    njt_stream_upstream_srv_conf_t *us);
 
 njt_str_t dyn_stream_lua_err_msg = njt_string("{\"code\":500,\"msg\":\"server error\"}");
 
@@ -393,6 +397,15 @@ static njt_int_t njt_dyn_stream_lua_update_upstreams(dynstreamlua_upstreams_t *u
                     ulscf->balancer.handler = njt_stream_lua_balancer_handler_inline;
                     ulscf->balancer.src.data = njt_pstrdup(pool, &upstream_item->balancer_by);
                     ulscf->balancer.src.len = upstream_item->balancer_by.len;
+
+                    uscf->peer.init_upstream = njt_stream_lua_balancer_init;
+                    uscf->peer.init = njt_stream_lua_balancer_init_peer;
+                    uscf->flags = NJT_STREAM_UPSTREAM_CREATE
+                                |NJT_STREAM_UPSTREAM_WEIGHT
+                                |NJT_STREAM_UPSTREAM_MAX_FAILS
+                                |NJT_STREAM_UPSTREAM_FAIL_TIMEOUT
+                                |NJT_STREAM_UPSTREAM_DOWN;
+
                     lua_pushlightuserdata(L, njt_stream_lua_lightudata_mask(code_cache_key));
                     lua_rawget(L, LUA_REGISTRYINDEX); // cache
                     if (ulscf->balancer.src_key) {
