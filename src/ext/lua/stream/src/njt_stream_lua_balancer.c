@@ -52,11 +52,11 @@ static njt_int_t njt_stream_lua_balancer_set_session(njt_peer_connection_t *pc,
 static void njt_stream_lua_balancer_save_session(njt_peer_connection_t *pc,
     void *data);
 #endif
-static njt_int_t njt_stream_lua_balancer_init(njt_conf_t *cf,
+njt_int_t njt_stream_lua_balancer_init(njt_conf_t *cf,
     njt_stream_upstream_srv_conf_t *us);
 
 
-static njt_int_t njt_stream_lua_balancer_init_peer(njt_stream_session_t *s,
+njt_int_t njt_stream_lua_balancer_init_peer(njt_stream_session_t *s,
     njt_stream_upstream_srv_conf_t *us);
 
 
@@ -223,8 +223,7 @@ njt_stream_lua_balancer_by_lua(njt_conf_t *cf, njt_command_t *cmd,
     return NJT_CONF_OK;
 }
 
-
-static njt_int_t
+njt_int_t
 njt_stream_lua_balancer_init(njt_conf_t *cf,
     njt_stream_upstream_srv_conf_t *us)
 {
@@ -239,7 +238,7 @@ njt_stream_lua_balancer_init(njt_conf_t *cf,
 }
 
 
-static njt_int_t
+njt_int_t
 njt_stream_lua_balancer_init_peer(njt_stream_session_t *s,
     njt_stream_upstream_srv_conf_t *us)
 {
