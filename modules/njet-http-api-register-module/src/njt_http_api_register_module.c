@@ -224,13 +224,14 @@ njt_http_api_module_find_handler(njt_str_t *module_key){
 
 static void njt_http_api_module_register_post_handler(njt_http_request_t *r)
 {
-    //return directly when got un-recognized status
-    if (r->headers_out.status < NJT_HTTP_OK || r->headers_out.status > NJT_HTTP_INSUFFICIENT_STORAGE) {     
+    njt_http_api_register_forward_ctx_t *srctx = njt_http_get_module_ctx(r, njt_http_api_register_module);
+
+    //return directly when got un-recognized status or can't get child resp
+    if (r->headers_out.status < NJT_HTTP_OK || r->headers_out.status > NJT_HTTP_INSUFFICIENT_STORAGE
+         || srctx->child_resp == NULL ) {     
         njt_http_finalize_request(r, NJT_HTTP_INTERNAL_SERVER_ERROR);
         return;
     }
-    //get ctx
-    njt_http_api_register_forward_ctx_t *srctx = njt_http_get_module_ctx(r, njt_http_api_register_module);
 
     njt_chain_t out;
     out.buf = srctx->child_resp;
@@ -250,12 +251,19 @@ static njt_int_t njt_http_api_module_register_subrequest_post_handler(njt_http_r
     njt_http_request_t *pr = r->parent;
     //get ctx
     njt_http_api_register_forward_ctx_t *srctx = data;
-    pr->headers_out.status = r->headers_out.status;
 
-    //response is in buffer
-    njt_buf_t *pRecvBuf = &r->upstream->buffer;
-    srctx->child_resp = pRecvBuf;
-    srctx->resp_length = r->upstream->length;
+    // If subrequest fails (e.g. 404 location missing) or upstream is null
+    if (r->headers_out.status != NJT_HTTP_OK || r->upstream == NULL) {
+        njt_log_error(NJT_LOG_ERR, r->connection->log, 0, "subrequest failed, please check cluster_forward config"); 
+        pr->headers_out.status = NJT_HTTP_INTERNAL_SERVER_ERROR;
+        srctx->child_resp = NULL; // Flag for failure
+        srctx->resp_length = 0;
+    } else {
+        pr->headers_out.status = r->headers_out.status;
+        srctx->child_resp = &r->upstream->buffer;
+        srctx->resp_length = r->upstream->length;
+    }
+
     pr->write_event_handler = njt_http_api_module_register_post_handler;
     return NJT_OK;
 }
@@ -350,10 +358,11 @@ static njt_int_t njt_http_api_module_register_should_forward_request(njt_http_re
         njt_str_set(&lip, "");
     }
 
-    //if local ip and master ip is different
-    if ( mip.len == lip.len && mip.len != 0 && njt_strncmp(lip.data, mip.data, lip.len) != 0) {
-        return 1;
+    // If master IP is known and (lengths differ OR contents differ), then forward.
+    if (mip.len != 0 && (mip.len != lip.len || njt_strncmp(lip.data, mip.data, mip.len) != 0)) {
+      return 1;
     }
+
     return 0;
 }
 
