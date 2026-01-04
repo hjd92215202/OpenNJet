@@ -105,7 +105,11 @@ $t->write_file_expand('njet_ctrl.conf', <<'EOF');
 
 load_module %%njet_module_path%%/njt_http_sendmsg_module.so; 
 load_module %%njet_module_path%%/njt_ctrl_config_api_module.so; 
-load_module %%njet_module_path%%/njt_helper_health_check_module.so; 
+load_module %%njet_module_path%%/njt_helper_health_check_module.so;
+load_module %%njet_module_path%%/njt_health_check_http_module.so;
+load_module %%njet_module_path%%/njt_health_check_tcp_module.so;
+load_module %%njet_module_path%%/njt_health_check_udp_module.so;
+load_module %%njet_module_path%%/njt_health_check_mysql_module.so; 
 load_module %%njet_module_path%%/njt_http_upstream_api_module.so; 
 load_module %%njet_module_path%%/njt_http_location_api_module.so; 
 load_module %%njet_module_path%%/njt_doc_module.so; 
