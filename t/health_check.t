@@ -391,7 +391,7 @@ sleep 2;
 diag("Running http hc get");
 $response = $t->get_with_port($http_hc_json_url, 'localhost', 8080);
 
-like($response, qr/"status":"200"/, 'http hc get ok');
+like($response, qr/"status": "200"/, 'http hc get ok');
 
 #delete http hc
 diag("Running http hc delete");
