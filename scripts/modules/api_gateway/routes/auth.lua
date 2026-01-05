@@ -110,7 +110,7 @@ local function loginFunc(req, res, next)
                 end
             else
                 retObj.code = RETURN_CODE.LOGIN_FAIL
-                retObj.msg = userId -- second parameter is the error msg    
+                retObj.msg = userObj -- now third parameter is the error msg    
             end
         end
     end

@@ -78,7 +78,7 @@ local function get_token_and_userinfo_from_keycloak(login_data)
     if not keycloak_client_id or not keycloak_client_secret or not keycloak_scope or not keycloak_grant_type
         or not keycloak_token_url or not keycloak_userinfo_url then
         njt.log(njt.INFO, "get keycloak sys config error, some is nil")
-        return false, nil, nil
+        return false, nil, "get keycloak sys config error, some is nil" 
     end
 
     local body = {
@@ -103,22 +103,22 @@ local function get_token_and_userinfo_from_keycloak(login_data)
     
     if not res then
         njt.log(njt.INFO, "get access token from keycloak error:", err)
-        return false, nil, nil
+        return false, nil, "get access token from keycloak error:"..tostring(err) 
     end
     
     njt.log(njt.INFO, "get keycloak token body:", res.body)
 
     local success, data = pcall(cjson.decode, res.body)
     if not success then
-        njt.log(njt.ERR, "parse keyclaok token info error:", res.body)
-        return false, nil, nil
+        njt.log(njt.ERR, "parse keycloak token info error:", res.body)
+        return false, nil, "parse keycloak token info error" 
     end
 
     local access_token = data["access_token"]
 
     if not access_token then
-        njt.log(njt.ERR, "keyclaok access_token is not exist")
-        return false, nil, nil
+        njt.log(njt.ERR, "keycloak access_token is not exist")
+        return false, nil, "keycloak access_token is not exist" 
     end
 
     local auth_access_token = string.format("Bearer %s", access_token)
@@ -133,15 +133,15 @@ local function get_token_and_userinfo_from_keycloak(login_data)
 
     if not userinfo then
         njt.log(njt.INFO, "get keycloak user info error:", err)
-        return false, nil, nil
+        return false, nil, "get keycloak user info error:"..tostring(err) 
     end
 
     njt.log(njt.INFO, "keycloak user info:", userinfo.body)
 
     local userinfo_ok, userinfo_data = pcall(cjson.decode, userinfo.body)
     if not userinfo_ok then
-        njt.log(njt.ERR, "parse keyclaok userinfo info error:", userinfo.body)
-        return false, nil, nil
+        njt.log(njt.ERR, "parse keycloak userinfo info error:", userinfo.body)
+        return false, nil, "parse keycloak userinfo info error" 
     end
 
     return true, access_token, userinfo_data
@@ -157,13 +157,13 @@ function _M.login(login_data)
     local ok, token, userinfo = get_token_and_userinfo_from_keycloak(login_data)
     if not ok then
         njt.log(njt.ERR, "get token and user info from keycloak error")
-        return false, nil, nil, nil
+        return false, nil, userinfo, nil
     end
 
     -- check group info
     if not userinfo.groups or #userinfo.groups < 1 then
         njt.log(njt.ERR, "group info is empty of user:".. login_data.username)
-        return false, nil, nil, nil
+        return false, nil, "group info is empty of user:".. login_data.username, nil
     end
 
     local inputObj = {}
@@ -182,7 +182,7 @@ function _M.login(login_data)
         local create_user_ok, userObj = userDao.createUser(inputObj)
         if not create_user_ok then
             njt.log(njt.ERR, "create user error when use keycloak userinfo")
-            return false, nil, nil, nil
+            return false, nil, "create user error when use keycloak userinfo", nil
         end
 
         userid = userObj.id
@@ -196,7 +196,7 @@ function _M.login(login_data)
         local update_user_ok, msg = userDao.updateUser(inputObj)
         if not update_user_ok then
             njt.log(njt.ERR, "udpate user error when use keycloak userinfo")
-            return false, nil, nil, nil
+            return false, nil, "udpate user error when use keycloak userinfo", nil
         end
     end
 
@@ -217,7 +217,7 @@ function _M.login(login_data)
             local create_group_ok, groupObj = groupDao.createGroup(groupInputObj)
             if not create_group_ok then
                 njt.log(njt.ERR, "create group error: ".. group_item)
-                return false, nil, nil, nil
+                return false, nil, "create group error: ".. group_item, nil
             end
 
             -- add group_role_relation(innner role of general, roleid is 2)
@@ -226,7 +226,7 @@ function _M.login(login_data)
             local update_grouprole_ok, msg = groupDao.updateUserGroupRoleRel(userGroupRoleObj)
             if not update_grouprole_ok then
                 njt.log(njt.ERR, "update group role relation error: ".. group_item)
-                return false, nil, nil, nil
+                return false, nil, "update group role relation error: ".. group_item, nil
             end
         end
     end
@@ -239,7 +239,7 @@ function _M.login(login_data)
         local get_group_ok, groupObj = groupDao.getGroupByName(group_item)
         if not get_group_ok then
             njt.log(njt.ERR, "get group error: ".. group_item)
-            return false, nil, nil, nil
+            return false, nil, "get group error: ".. group_item, nil
         end
 
         table.insert(inputGroupObj.groups, groupObj.id)
@@ -251,7 +251,7 @@ function _M.login(login_data)
     if not update_group_ok then
         userDao.deleteUserById(userid)
         njt.log(njt.ERR, "udpate user group error")
-        return false, nil, nil, nil
+        return false, nil, "udpate user group error", nil
     end
 
     njt.log(njt.INFO, "update user group success")
