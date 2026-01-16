@@ -422,6 +422,7 @@ njt_http_write_filter(njt_http_request_t *r, njt_chain_t *in)
     njt_http_variable_value_t   *vv;
     u_char                      userid_buf[NJT_HTTP_LIMIT_RATE_USERID_MAX_LEN];
     off_t                       total_data, left_rate_len;
+    njt_flag_t                  unlimit_flag = 0;
 
 
     userid.data = userid_buf;
@@ -703,6 +704,7 @@ njt_http_write_filter(njt_http_request_t *r, njt_chain_t *in)
                     "hos no userid, not limit rate");
 
                 limit = clcf->sendfile_max_chunk;
+                unlimit_flag = 1;
 
                 r->limit_rate_multi->rate = -1;
 
@@ -728,6 +730,7 @@ njt_http_write_filter(njt_http_request_t *r, njt_chain_t *in)
                 r->limit_rate_multi->already_send);
             if(total_data <= 0){
                 limit = clcf->sendfile_max_chunk;
+                unlimit_flag = 1;
             }else if(left_rate_len > (off_t)0){
                 //if has rate left, now use left rate first
 
@@ -753,6 +756,7 @@ njt_http_write_filter(njt_http_request_t *r, njt_chain_t *in)
                             limit);
                     }else if(r->limit_rate_multi->rate < 0){
                         limit = clcf->sendfile_max_chunk;
+                        unlimit_flag = 1;
                         njt_log_error(NJT_LOG_DEBUG, c->log, 0,
                             "limit rate multi now:%T userid:%V rate less than 0, not limit",
                             now,
@@ -795,6 +799,7 @@ njt_http_write_filter(njt_http_request_t *r, njt_chain_t *in)
                         njt_log_error(NJT_LOG_NOTICE, c->log, 0,
                             "limit_rate_multi subrequest fail, not limit");
                         limit = clcf->sendfile_max_chunk;
+                        unlimit_flag = 1;
                     }else{
 
                         subreq_rc = njt_http_limit_rate_multi_create_subrequest(r, c, size, 0);
@@ -815,6 +820,7 @@ njt_http_write_filter(njt_http_request_t *r, njt_chain_t *in)
                         njt_log_error(NJT_LOG_ALERT, c->log, 0,
                             "limit_rate_multi create subrequest fail, just not limit");
                         limit = clcf->sendfile_max_chunk;
+                        unlimit_flag = 1;
                     }
                 }
             }
@@ -872,7 +878,7 @@ njt_http_write_filter(njt_http_request_t *r, njt_chain_t *in)
 //add by clb
     if(clcf->limit_rate_multi && r->limit_rate_multi->userid.len > 0
         && !r->limit_rate_multi->already_repost_last
-        && limit != (off_t)clcf->sendfile_max_chunk){
+        && !unlimit_flag){
         //calc alread send
         r->limit_rate_multi->already_send += (c->sent - sent);
         njt_log_error(NJT_LOG_DEBUG, c->log, 0,
