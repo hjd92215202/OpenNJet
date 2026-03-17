@@ -65,6 +65,7 @@ OpenNJet 应用引擎是高性能、轻量级的WEB应用与代理软件。作�
 - [编码规范&新手指引](https://gitee.com/njet-rd/docs/blob/master/zh-cn/OpenNJet%E7%BC%96%E7%A0%81%E8%A7%84%E8%8C%83%E4%BB%A5%E5%8F%8A%E6%96%B0%E6%89%8B%E6%8C%87%E5%BC%95.md)
 - [使用手册](https://gitee.com/njet-rd/docs)
 - [开发指南](https://gitee.com/njet-rd/docs/blob/master/zh-cn/CoPilot%E5%BC%80%E5%8F%91%E6%8C%87%E5%8D%97.md)
+- [麒麟系统国密新手手册（仓库内）](doc/kylin_guomi_guide.md)
 
 ## 参与贡献
 
